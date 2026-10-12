@@ -80,8 +80,9 @@ function onKeydown(event: KeyboardEvent) {
       store.reset();
       break;
     case 'enter':
-      // Enter on a focused button already clicks it; sending here too would send twice.
-      if (event.target instanceof HTMLButtonElement) break;
+      // A click on the chart or panel leaves focus on the body: neither is focusable. A focused
+      // link, button or summary keeps its own Enter action and never sends.
+      if (event.target !== document.body) break;
       if (account.master) void execution.send();
       else keyDialog.value?.open();
       break;

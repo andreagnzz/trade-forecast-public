@@ -17,6 +17,19 @@ test('dragging the stop resizes the position without exceeding the risk', async 
   expect(risk).toBeLessThanOrEqual(50);
 });
 
+test('Enter reaches Send from the chart, never from a focused link', async ({ page }) => {
+  const chart = await openTerminal(page);
+  const keyDialog = page.getByRole('dialog', { name: 'Connect testnet' });
+
+  await page.getByRole('link', { name: 'Charts by TradingView' }).focus();
+  await page.keyboard.press('Enter');
+  await expect(keyDialog).toBeHidden();
+
+  await page.mouse.click(chart.x + chart.width * 0.4, chart.y + chart.height * 0.5);
+  await page.keyboard.press('Enter');
+  await expect(keyDialog).toBeVisible();
+});
+
 test('typing in the risk field never moves a line', async ({ page }) => {
   const chart = await openTerminal(page);
   await page.mouse.move(chart.x + chart.width * 0.4, chart.y + chart.height * 0.8);
