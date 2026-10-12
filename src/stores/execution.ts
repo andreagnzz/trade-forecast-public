@@ -165,7 +165,7 @@ export const useExecutionStore = defineStore('execution', () => {
       onFills: (fills) => {
         if (!live()) return;
         service.onFills(fills);
-        account.refresh();
+        account.onFills(fills);
       },
       onPosition: (next) => {
         if (live()) account.position = next;

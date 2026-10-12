@@ -51,12 +51,23 @@ describe('incrementalFills', () => {
       [fill(1, NOON - 10, 'buy', 0), fill(2, NOON - 5, 'sell', 0.001)],
       [fill(2, NOON - 5, 'sell', 0.001), fill(3, NOON, 'buy', 0)],
     ];
-    const read = incrementalFills((since) => {
+    const { read } = incrementalFills((since) => {
       asked.push(since);
       return Promise.resolve(pages.shift() ?? []);
     });
     expect((await read(YESTERDAY)).map((f) => f.tid)).toEqual([1, 2]);
     expect((await read(NOON - 6)).map((f) => f.tid)).toEqual([2, 3]);
     expect(asked).toEqual([YESTERDAY, NOON - 5]);
+  });
+
+  it('counts a socket fill the REST history has not indexed yet, without skipping older ones', async () => {
+    const asked: number[] = [];
+    const { read, remember } = incrementalFills((since) => {
+      asked.push(since);
+      return Promise.resolve([fill(1, NOON - 10, 'buy', 0)]);
+    });
+    remember([fill(2, NOON, 'sell', 0.001, -5)]);
+    expect((await read(YESTERDAY)).map((f) => f.tid).sort()).toEqual([1, 2]);
+    expect(asked).toEqual([YESTERDAY]);
   });
 });

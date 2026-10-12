@@ -14,13 +14,20 @@ interface AccountReads {
 export function incrementalFills<F extends Fill>(load: (since: number) => Promise<F[]>) {
   const cache = new Map<number, F>();
   let upTo = 0;
-  return async (since: number): Promise<F[]> => {
-    for (const f of await load(Math.max(since, upTo))) {
-      cache.set(f.tid, f);
-      upTo = Math.max(upTo, f.time);
-    }
-    for (const [tid, f] of cache) if (f.time < since) cache.delete(tid);
-    return [...cache.values()];
+  return {
+    read: async (since: number): Promise<F[]> => {
+      for (const f of await load(Math.max(since, upTo))) {
+        cache.set(f.tid, f);
+        upTo = Math.max(upTo, f.time);
+      }
+      for (const [tid, f] of cache) if (f.time < since) cache.delete(tid);
+      return [...cache.values()];
+    },
+    // Socket fills can reach us before the REST history has them. They leave the REST cursor
+    // alone, so an older fill still being indexed is not skipped.
+    remember: (fills: readonly F[]) => {
+      for (const f of fills) cache.set(f.tid, f);
+    },
   };
 }
 

@@ -19,6 +19,7 @@ import {
   loadOpenOrders,
   loadProfile,
   loadUnrealizedPnl,
+  type AccountFill,
   type Address,
   type AccountLimits,
   type AccountOrder,
@@ -47,7 +48,7 @@ export const useAccountStore = defineStore('account', () => {
   const appOrders = shallowRef<(AccountOrder & { cloid: Cloid })[]>([]);
   const syncError = ref<string | null>(null);
   let profile: Profile | null = null;
-  let recentFills: ReturnType<typeof incrementalFills> | null = null;
+  let recentFills: ReturnType<typeof incrementalFills<AccountFill>> | null = null;
 
   // A lock ends at 00:00 UTC whether or not anything else happens.
   const clockMs = ref(Date.now());
@@ -67,7 +68,7 @@ export const useAccountStore = defineStore('account', () => {
     const now = Date.now();
     const day = await loadDayStats(
       {
-        fills: recentFills,
+        fills: recentFills.read,
         funding: (since) => loadFunding(address, since),
         unrealizedPnl: () => loadUnrealizedPnl(address),
       },
@@ -150,6 +151,13 @@ export const useAccountStore = defineStore('account', () => {
     refreshTimer ??= setTimeout(runRefresh, REFRESH_DELAY_MS);
   }
 
+  // The socket's fills count before the REST history has them: a loss just closed spends the
+  // one bullet at once.
+  function onFills(fills: readonly AccountFill[]) {
+    recentFills?.remember(fills);
+    refresh();
+  }
+
   async function open(address: Address) {
     master.value = address;
     stats.value = noStats;
@@ -191,6 +199,7 @@ export const useAccountStore = defineStore('account', () => {
     persistRules,
     refreshStats,
     refresh,
+    onFills,
     open,
     close,
     setRules,

@@ -47,7 +47,7 @@ const recentFills = incrementalFills(reads.fills);
 export const dayStats = () =>
   loadDayStats(
     {
-      fills: recentFills,
+      fills: recentFills.read,
       funding: (since) => loadFunding(master, since),
       unrealizedPnl: () => loadUnrealizedPnl(master),
     },
