@@ -8,6 +8,7 @@ import {
   type Step,
 } from './bracket';
 import { applyChoice } from './choices';
+import type { LegName } from './cloid';
 import { alert, applyFill, currentLeg, giveUp, isStale, replace, revertTp } from './legs';
 import { reconcile } from './reconcile';
 import { settle } from './settle';
@@ -73,6 +74,18 @@ function onOrder(d: Bracket, event: OrderEvent): BracketCommand[] {
   const ours = state.status === 'canceling';
   const wasFilling = state.status === 'filling';
   state.status = 'done';
+  return onLegDone(d, leg, event, ours, wasFilling);
+}
+
+// The order left the book: filled, triggered or cancelled, by us (ours) or not.
+function onLegDone(
+  d: Bracket,
+  leg: LegName,
+  event: OrderEvent,
+  ours: boolean,
+  wasFilling: boolean,
+): BracketCommand[] {
+  const state = d[leg];
   switch (leg) {
     case 'entry':
       // The IOC response can beat its fill, so the order's own filled size decides.
