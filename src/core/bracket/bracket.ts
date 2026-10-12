@@ -29,8 +29,11 @@ export interface BracketPlan {
 // filling: the order left the book filled or triggered, and its fills are still on the way.
 type LegStatus = 'idle' | 'sending' | 'live' | 'canceling' | 'waiting' | 'filling' | 'done';
 
+// seq names the order the leg tracks; maxSeq is the highest it ever sent, since a refused
+// take-profit resize goes back to tracking an older one.
 interface LegState {
   seq: number;
+  maxSeq: number;
   status: LegStatus;
   size: number;
   retries: number;
@@ -115,7 +118,7 @@ export type Phase =
   | 'cancelled'
   | 'attention';
 
-const leg = (): LegState => ({ seq: 0, status: 'idle', size: 0, retries: 0 });
+const leg = (): LegState => ({ seq: 0, maxSeq: 0, status: 'idle', size: 0, retries: 0 });
 
 export const legCloid = (b: Bracket, name: LegName) =>
   makeCloid(b.plan.prefix, b.plan.id, name, b[name].seq);

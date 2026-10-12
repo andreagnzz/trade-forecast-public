@@ -81,7 +81,7 @@ test('unprotected: an open position without a live stop offers a reduce-only clo
 }) => {
   await openTerminal(page);
   await showBracket(page, {
-    sl: { seq: 5, status: 'waiting', size: 0, retries: 5, closedSz: 0 },
+    sl: { seq: 5, maxSeq: 5, status: 'waiting', size: 0, retries: 5, closedSz: 0 },
     attention: 'sl_failed',
   });
   await expect(page.getByText(/UNPROTECTED: 0\.01 BTC/)).toBeVisible();

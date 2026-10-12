@@ -88,7 +88,8 @@ function takeProfit(d: Bracket): BracketCommand[] {
   const cloid = legCloid(d, 'tp');
   Object.assign(tp, {
     prev: { seq: tp.seq, size: tp.size, px: tp.sentPx },
-    seq: tp.seq + 1,
+    seq: tp.maxSeq + 1,
+    maxSeq: tp.maxSeq + 1,
     status: 'sending',
     size,
     sentPx: tp.px,

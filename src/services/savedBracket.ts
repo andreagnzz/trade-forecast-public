@@ -1,7 +1,7 @@
 import type { Bracket } from '../core/bracket/bracket';
 
 export interface Saved {
-  version: 2;
+  version: 3;
   since: number;
   bracket: Bracket;
 }
@@ -10,7 +10,7 @@ function isSaved(value: unknown): value is Saved {
   if (typeof value !== 'object' || value === null) return false;
   const bracket: unknown = Reflect.get(value, 'bracket');
   return (
-    Reflect.get(value, 'version') === 2 &&
+    Reflect.get(value, 'version') === 3 &&
     typeof Reflect.get(value, 'since') === 'number' &&
     typeof bracket === 'object' &&
     bracket !== null

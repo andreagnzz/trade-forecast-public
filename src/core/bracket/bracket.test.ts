@@ -391,7 +391,7 @@ describe('take-profit rejected', () => {
     expect(commands.at(-1)).toEqual({
       type: 'modify',
       cloid: c('tp'),
-      next: c('tp', 1),
+      next: c('tp', 2),
       order: { isBuy: false, px: 82_000, size: 0.002, reduceOnly: true, type: 'alo' },
     });
     expect(state.tp.prev).toEqual({ seq: 0, size: 0.001, px: 82_000 });
@@ -427,6 +427,30 @@ describe('take-profit rejected', () => {
     }
     expect(state.attention).toBe('tp_failed');
     expect(state.tp.status).toBe('live');
+  });
+
+  it('never sends a take-profit cloid twice when the user picks a price after five failures', () => {
+    const events: BracketEvent[] = [buy(0.003)];
+    for (let seq = 0; seq < 5; seq++) {
+      events.push(rejected(c('tp', seq)), { type: 'retry_due', leg: 'tp' });
+    }
+    events.push({ type: 'tp_at', px: 81_900 });
+    const { state, commands } = run(working(), ...events);
+    const placed = commands.flatMap((cmd) => (cmd.type === 'place' ? [cmd.cloid] : []));
+    expect(state.tp.status).toBe('sending');
+    expect(new Set(placed).size).toBe(placed.length);
+  });
+
+  it('never reuses the cloid of a refused resize for the next one', () => {
+    const { commands } = run(
+      resting(),
+      buy(0.001),
+      order(c('tp'), 'open'),
+      buy(0.001),
+      rejected(c('tp', 1), 'post_only_would_cross'),
+      { type: 'tp_at', px: 81_900 },
+    );
+    expect(commands.at(-1)).toMatchObject({ type: 'modify', cloid: c('tp'), next: c('tp', 2) });
   });
 
   it('treats a resize of a take-profit HL already pulled as gone, not as a failure', () => {

@@ -33,8 +33,8 @@ export function applyChoice(d: Bracket, event: UserEvent): BracketCommand[] {
     case 'tp_at':
       if (!tpAttention || !validPx(event.px)) return [];
       Object.assign(d.tp, { px: event.px, retries: 0 });
-      if (d.tp.status === 'done') d.tp.status = 'idle';
       d.attention = null;
+      if (d.tp.status === 'done') replace(d, 'tp');
       return [];
     case 'sl_only':
       if (!tpAttention) return [];

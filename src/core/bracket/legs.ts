@@ -20,7 +20,7 @@ type ExitLeg = 'sl' | 'tp' | 'close';
 const FAILED = { sl: 'sl_failed', tp: 'tp_failed', close: 'close_failed' } as const;
 
 // A cloid holds the seq in one byte.
-export const seqLeft = (d: Bracket, leg: ExitLeg) => d[leg].seq < 255;
+export const seqLeft = (d: Bracket, leg: ExitLeg) => d[leg].maxSeq < 255;
 
 // Before the entry is sent nothing is exposed, so a stop that cannot be placed ends the bracket.
 export function giveUp(d: Bracket, leg: ExitLeg) {
@@ -36,7 +36,8 @@ export function replace(d: Bracket, leg: ExitLeg, status: 'idle' | 'waiting' = '
     giveUp(d, leg);
     return false;
   }
-  d[leg].seq += 1;
+  d[leg].maxSeq += 1;
+  d[leg].seq = d[leg].maxSeq;
   d[leg].status = status;
   if (leg === 'sl') d.sl.closedSz = 0;
   return true;
