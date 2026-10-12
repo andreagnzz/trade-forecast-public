@@ -158,34 +158,30 @@ export const useTerminalStore = defineStore('terminal', () => {
   let generation = 0;
   let closeFeed: () => void = () => undefined;
 
-  async function start() {
-    const current = ++generation;
-    const live = () => current === generation;
-    closeFeed();
-    status.value = 'loading';
-    connection.value = 'connecting';
-    // Nothing from the previous network may size anything while the new one loads.
-    instrument.value = undefined;
-    quote.value = undefined;
-    markPx.value = 0;
+  // Returns false when the seed failed or a newer start took over.
+  async function loadSeed(live: () => boolean): Promise<boolean> {
     try {
       const [spec, history, book] = await Promise.all([
         loadInstrument(COIN, network.value),
         loadCandles(COIN, network.value),
         loadQuote(COIN, network.value),
       ]);
-      if (!live()) return;
+      if (!live()) return false;
       instrument.value = spec;
       markPx.value = spec.markPx;
       candles.value = history;
       quote.value = book;
       reset();
       status.value = 'ready';
+      return true;
     } catch {
       if (live()) status.value = 'error';
-      return;
+      return false;
     }
-    // The REST seed is already on screen: a failed subscription only means no live updates.
+  }
+
+  // The REST seed is already on screen: a failed subscription only means no live updates.
+  async function subscribe(live: () => boolean) {
     try {
       const close = await subscribeMarket(COIN, network.value, {
         onCandle: (candle) => {
@@ -206,6 +202,19 @@ export const useTerminalStore = defineStore('terminal', () => {
     } catch {
       if (live()) connection.value = 'closed';
     }
+  }
+
+  async function start() {
+    const current = ++generation;
+    const live = () => current === generation;
+    closeFeed();
+    status.value = 'loading';
+    connection.value = 'connecting';
+    // Nothing from the previous network may size anything while the new one loads.
+    instrument.value = undefined;
+    quote.value = undefined;
+    markPx.value = 0;
+    if (await loadSeed(live)) await subscribe(live);
   }
 
   function useNetwork(next: Network) {
