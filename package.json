@@ -1,5 +1,7 @@
 {
   "name": "trade-forecast",
+  "description": "Drag-to-size bracket orders for Hyperliquid perps, testnet execution only",
+  "license": "UNLICENSED",
   "private": true,
   "type": "module",
   "packageManager": "pnpm@10.30.0",
