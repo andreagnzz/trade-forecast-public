@@ -838,6 +838,19 @@ describe('reconstruction', () => {
     expect(state.cancelling).toBeNull();
   });
 
+  it.each(['sl', 'tp'] as const)(
+    'asks for a live %s missing from a snapshot instead of placing a second one',
+    (leg) => {
+      const open = [
+        { cloid: c('sl'), size: 0 },
+        { cloid: c('tp'), size: 0.003 },
+      ].filter((o) => o.cloid !== c(leg));
+      const { state, commands } = run(filled(), { type: 'snapshot', open, fills: [] });
+      expect(commands).toEqual([{ type: 'query', cloid: c(leg) }]);
+      expect(state[leg]).toMatchObject({ seq: 0, status: 'live' });
+    },
+  );
+
   it('rebuilds from the book and fills, cancels a stale leg and resizes the take-profit', () => {
     const first = {
       tid: 900,
@@ -901,11 +914,16 @@ describe('reconstruction', () => {
   });
 
   it('places the stop again when the book lost it while a position is open', () => {
-    const { commands } = run(filled(), {
-      type: 'snapshot',
-      open: [{ cloid: c('tp'), size: 0.003 }],
-      fills: [],
-    });
+    const lost = run(
+      filled(),
+      { type: 'snapshot', open: [{ cloid: c('tp'), size: 0.003 }], fills: [] },
+      order(c('sl'), 'canceled'),
+    );
+    expect(lost.commands).toEqual([
+      { type: 'query', cloid: c('sl') },
+      { type: 'retry', leg: 'sl', delayMs: 250 },
+    ]);
+    const { commands } = run(lost.state, { type: 'retry_due', leg: 'sl' });
     expect(commands[0]).toMatchObject({ type: 'place', cloid: c('sl', 1) });
   });
 
@@ -951,7 +969,10 @@ describe('reconstruction', () => {
   it('asks for the fate of a fired stop whose fills did not come before the reload', () => {
     const fired = run(filled(), order(c('sl'), 'triggered')).state;
     const { commands } = run(fired, { type: 'snapshot', open: [], fills: [] });
-    expect(commands).toEqual([{ type: 'query', cloid: c('sl') }]);
+    expect(commands).toEqual([
+      { type: 'query', cloid: c('sl') },
+      { type: 'query', cloid: c('tp') },
+    ]);
   });
 
   it('drops entry_unknown once a snapshot finds the entry resting, so dismiss no longer applies', () => {

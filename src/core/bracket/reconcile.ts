@@ -1,6 +1,6 @@
 import { LEGS, legCloid, type Bracket, type BracketCommand, type BracketEvent } from './bracket';
 import { isCloid } from './cloid';
-import { applyFill, currentLeg, ownLeg, replace } from './legs';
+import { applyFill, currentLeg, ownLeg } from './legs';
 
 function staleOrders(d: Bracket, open: { cloid: string }[]): BracketCommand[] {
   const commands: BracketCommand[] = [];
@@ -34,7 +34,8 @@ export function reconcile(
       state.status === 'sending' ||
       // A fired exit whose fills the previous page never saw: its order status says what it closed.
       state.status === 'filling' ||
-      (leg === 'entry' && state.status === 'live')
+      // The snapshot may predate the leg reaching the book; a cancelled order stays queryable.
+      state.status === 'live'
     ) {
       commands.push({ type: 'query', cloid: legCloid(d, leg) });
     } else if (state.status === 'canceling') {
@@ -42,8 +43,6 @@ export function reconcile(
     } else if (state.status === 'waiting') {
       // The retry timer died with the previous page.
       state.status = 'idle';
-    } else if (state.status === 'live' && (leg === 'sl' || leg === 'tp')) {
-      replace(d, leg);
     } else if (leg === 'entry' && state.status === 'idle') {
       // Nothing was sent before the reload: the price has moved, so nothing is sent after it.
       state.status = 'done';
