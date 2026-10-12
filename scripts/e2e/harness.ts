@@ -11,7 +11,7 @@ import {
   subscribeAccount,
 } from '../../src/hl/account';
 import { assertTestnet, connectAgent } from '../../src/hl/exchange';
-import { exitPx, snapPrice, snapSize } from '../../src/hl/format';
+import { exitPx, MIN_NOTIONAL_USD, snapPrice, snapSize } from '../../src/hl/format';
 import { loadInstrument, loadQuote } from '../../src/hl/marketData';
 import { incrementalFills, loadDayStats } from '../../src/services/accountData';
 import {
@@ -21,6 +21,8 @@ import {
   type BracketView,
 } from '../../src/services/bracketManager';
 import { createOrderService } from '../../src/services/orderService';
+
+export const COIN = 'BTC';
 
 // The e2e account is a separate master with its own agent, so its losing round-trips never
 // reach the demo account's PnL or rules.
@@ -65,7 +67,7 @@ export const orders = createOrderService({
 });
 
 const managers = new Set<BracketManager>();
-await subscribeAccount(master, 'BTC', {
+await subscribeAccount(master, COIN, {
   onOrder: (update) => {
     for (const manager of managers) manager.onOrderUpdate(update);
   },
@@ -166,7 +168,7 @@ export async function longPlan(
     entry: { type: options.type, px: entryPx },
     size,
     szDecimals: m.szDecimals,
-    minNotionalUsd: 10,
+    minNotionalUsd: MIN_NOTIONAL_USD,
     stopPx,
     tpPx: options.tpPx ?? m.px(m.ask * 1.02),
     riskUsd: size * (entryPx - stopPx),

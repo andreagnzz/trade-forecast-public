@@ -1,8 +1,8 @@
 import { writeFile } from 'node:fs/promises';
 import { setTimeout as sleep } from 'node:timers/promises';
 import { calibrate } from './e2e/calibrate';
-import { flatten, median } from './e2e/harness';
-import { COIN, scenarios, type Run } from './e2e/scenarios';
+import { COIN, flatten, median } from './e2e/harness';
+import { scenarios, type Run } from './e2e/scenarios';
 
 // a market bracket, b partial limit fill, c crossing take-profit, d close outside the app,
 // e reload, f one-bullet refusal, g stop hit by the market.

@@ -6,7 +6,7 @@ import type { Rules } from '../core/rules';
 import { loadFills, loadOpenOrders, loadPosition, subscribeAccount } from '../hl/account';
 import { connectAgent, type ExecutionClient } from '../hl/exchange';
 import { errorText } from '../hl/errors';
-import { exitPx, snapPrice } from '../hl/format';
+import { exitPx, MIN_NOTIONAL_USD, snapPrice } from '../hl/format';
 import {
   createBracketManager,
   randomBracketId,
@@ -16,7 +16,7 @@ import {
 } from '../services/bracketManager';
 import { createOrderService, type OrderService, type SendResult } from '../services/orderService';
 import { useAccountStore } from './account';
-import { MAX_SLIPPAGE, MIN_NOTIONAL_USD, useTerminalStore } from './terminal';
+import { MAX_SLIPPAGE, useTerminalStore } from './terminal';
 
 const KEY_STORAGE = 'tf.agentKey';
 

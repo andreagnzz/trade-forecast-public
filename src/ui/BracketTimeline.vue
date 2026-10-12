@@ -9,7 +9,8 @@ import {
 } from '../core/bracket/bracket';
 import { useAccountStore } from '../stores/account';
 import { useExecutionStore } from '../stores/execution';
-import { MIN_NOTIONAL_USD, useTerminalStore } from '../stores/terminal';
+import { MIN_NOTIONAL_USD } from '../hl/format';
+import { useTerminalStore } from '../stores/terminal';
 import { rMultiple, signedUsd, wholeUsd } from './format';
 
 const execution = useExecutionStore();

@@ -1,11 +1,12 @@
 import { setTimeout as sleep } from 'node:timers/promises';
 import { openSize, phase, type BracketPlan, type Phase } from '../../src/core/bracket/bracket';
-import { makeCloid } from '../../src/core/bracket/cloid';
+import { E2E_PREFIX, makeCloid } from '../../src/core/bracket/cloid';
 import { changeRules, initialRulesState } from '../../src/core/rules';
 import { loadAsks } from '../../src/hl/marketData';
 import { randomBracketId } from '../../src/services/bracketManager';
 import {
   appOrders,
+  COIN,
   closePx,
   dayStats,
   longPlan,
@@ -17,7 +18,6 @@ import {
   waitFor,
 } from './harness';
 
-export const COIN = 'BTC';
 const THIN_COINS = ['AVAX', 'SOL', 'ARB', 'SUI', 'DOGE', 'ETH'];
 
 export interface Run {
@@ -115,7 +115,7 @@ export const scenarios: Record<string, () => Promise<Omit<Run, 'scenario' | 'ok'
   async d() {
     const { session, plan } = await protectedMarketBracket();
     await waitPhase(session, 'protected');
-    const outside = makeCloid('7465', randomBracketId(), 'close', 0);
+    const outside = makeCloid(E2E_PREFIX, randomBracketId(), 'close', 0);
     const size = openSize(session.view().bracket ?? noBracket());
     await orders.send(COIN, {
       type: 'place',
@@ -169,12 +169,12 @@ export const scenarios: Record<string, () => Promise<Omit<Run, 'scenario' | 'ok'
     const plan = await longPlan(COIN, { type: 'ioc' });
     const direct = await orders.send(COIN, {
       type: 'place',
-      cloid: makeCloid('7465', plan.id, 'entry', 0),
+      cloid: makeCloid(E2E_PREFIX, plan.id, 'entry', 0),
       order: { isBuy: true, px: plan.entry.px, size: plan.size, reduceOnly: false, type: 'ioc' },
     });
     const cancel = await orders.send(COIN, {
       type: 'cancel',
-      cloid: makeCloid('7465', randomBracketId(), 'tp', 0),
+      cloid: makeCloid(E2E_PREFIX, randomBracketId(), 'tp', 0),
     });
     const lock = rules.state.lock?.reason ?? 'none';
     rules.state = initialRulesState;

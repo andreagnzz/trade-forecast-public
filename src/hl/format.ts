@@ -1,5 +1,8 @@
 import { formatPrice, formatSize } from '@nktkas/hyperliquid/utils';
 
+// HL rejects a perp order worth less than $10, bracket legs included.
+export const MIN_NOTIONAL_USD = 10;
+
 // The SDK formatters truncate and throw on a zero or non-finite result. The sizing core
 // expects 0 for a size below one lot (it reports below_min) and rejects a non-positive price.
 export function snapPrice(px: number, szDecimals: number): number {

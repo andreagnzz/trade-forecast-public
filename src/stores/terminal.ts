@@ -2,7 +2,7 @@ import { defineStore } from 'pinia';
 import { computed, ref, shallowRef } from 'vue';
 import { sizePosition, type SizingInput, type SizingResult } from '../core/sizing';
 import type { AccountLimits } from '../hl/account';
-import { snapPrice, snapSize } from '../hl/format';
+import { MIN_NOTIONAL_USD, snapPrice, snapSize } from '../hl/format';
 import {
   loadCandles,
   loadInstrument,
@@ -26,7 +26,6 @@ const COIN = 'BTC';
 const FEES = { taker: 0.00045, maker: 0.00015 };
 export const MAX_SLIPPAGE = 0.002;
 export const STOP_SLIPPAGE_BUFFER = 0.001;
-export const MIN_NOTIONAL_USD = 10;
 const DEFAULT_STOP_DISTANCE = 0.005;
 const DEFAULT_TP_DISTANCE = 0.015;
 

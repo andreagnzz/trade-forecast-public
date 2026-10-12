@@ -1,9 +1,8 @@
 import { writeFile } from 'node:fs/promises';
 import { setTimeout as sleep } from 'node:timers/promises';
-import { makeCloid } from '../../src/core/bracket/cloid';
+import { E2E_PREFIX, makeCloid } from '../../src/core/bracket/cloid';
 import { randomBracketId } from '../../src/services/bracketManager';
-import { flatten, market, orders, reads } from './harness';
-import { COIN } from './scenarios';
+import { COIN, flatten, market, orders, reads } from './harness';
 
 // Opens and closes a known trade to pin down whether closedPnl includes the fee.
 export async function calibrate() {
@@ -14,7 +13,7 @@ export async function calibrate() {
   const size = open.sizeForUsd(15);
   await orders.send(COIN, {
     type: 'place',
-    cloid: makeCloid('7465', id, 'entry', 0),
+    cloid: makeCloid(E2E_PREFIX, id, 'entry', 0),
     order: {
       isBuy: true,
       px: open.px(open.ask * 1.002),
@@ -27,7 +26,7 @@ export async function calibrate() {
   const close = await market(COIN);
   await orders.send(COIN, {
     type: 'place',
-    cloid: makeCloid('7465', id, 'close', 0),
+    cloid: makeCloid(E2E_PREFIX, id, 'close', 0),
     order: {
       isBuy: false,
       px: close.px(close.bid * 0.998),
