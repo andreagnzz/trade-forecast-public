@@ -50,7 +50,7 @@ Evidence:
 
 - Unit and property tests (`pnpm test`); line coverage of `src/core` is above 99% (`pnpm test:coverage`). A fast-check property drives the bracket reducer through random fills, rejects, lost answers, lost stops and reloads, and checks that the stop is never cancelled with a position open, that no client order id is sent twice, that the entry is placed at most once, and that a closed bracket leaves a flat position and an empty book.
 - Sizing properties: the loss at the stop, fees and slippage buffer included, never exceeds the requested risk; sizes are whole lots and round down; every sized leg is at or above the $10 minimum.
-- Testnet end-to-end run on a separate account (`pnpm e2e:testnet`): full market bracket, crossing take-profit, outside close, reload and one-bullet refusal 10/10 each; partial limit fill 3/4; stop hit by the market: 4 runs. The stop is live about 1.3 s (median) before the first fill.
+- Testnet end-to-end run on a separate account (`pnpm e2e:testnet`): full market bracket, crossing take-profit, outside close, reload and one-bullet refusal 10/10 each; partial limit fill 4/4; stop hit by the market 4/4. The stop is live about 1.2 s (median) before the first fill.
 - Playwright (`pnpm test:e2e`): dragging the stop resizes the position without exceeding the requested risk, typing in the risk field never moves a line, a drag stays under 20 ms per frame at the 95th percentile, and each terminal state is captured at desktop and phone width.
 
 ## Limits
