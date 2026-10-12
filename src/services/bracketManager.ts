@@ -217,14 +217,29 @@ export function createBracketManager(deps: BracketManagerDeps) {
     return true;
   }
 
+  // Its orders may still rest on the exchange, untracked.
+  function dropSaved() {
+    saved = null;
+    storage.removeItem(storageKey);
+    lastError = 'saved bracket unreadable, dropped: check open orders';
+    notify();
+  }
+
   async function load() {
     const raw = storage.getItem(storageKey);
     saved = readSaved(raw);
-    if (!saved) storage.removeItem(storageKey);
-    // Its orders may still rest on the exchange, untracked.
-    if (raw !== null && !saved) lastError = 'saved bracket unreadable, dropped: check open orders';
+    if (raw !== null && !saved) {
+      dropSaved();
+      return;
+    }
     notify();
-    await reconcile();
+    // The shape check is shallow: a blob missing a deeper field throws in the reducer, before any
+    // command is queued.
+    try {
+      await reconcile();
+    } catch {
+      dropSaved();
+    }
   }
 
   function onOrderUpdate(update: OrderUpdate) {

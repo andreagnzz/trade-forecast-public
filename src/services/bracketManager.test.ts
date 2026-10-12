@@ -240,6 +240,26 @@ describe('BracketManager', () => {
     expect(reloaded.view().bracket?.filledSz).toBe(0.003);
   });
 
+  it('drops a saved bracket that breaks on reload, without sending anything', async () => {
+    const first = setup();
+    first.exchange.answers.entry = { status: 'filled', filledSz: 0.003 };
+    await first.manager.send(PLAN, MARK);
+    await first.manager.settled();
+    const stored = JSON.parse(first.storage.get('bracket') ?? '') as { bracket: object };
+    first.storage.set(
+      'bracket',
+      JSON.stringify({ ...stored, bracket: { ...stored.bracket, tids: undefined } }),
+    );
+    const exchange: Exchange = { ...first.exchange, calls: [], fills: [entryFill(7, 0.003)] };
+    const reloaded = setup({ storage: first.storage, exchange });
+    await reloaded.manager.load();
+    await reloaded.manager.settled();
+    expect(exchange.calls).toEqual([]);
+    expect(reloaded.view().bracket).toBeNull();
+    expect(reloaded.view().lastError).toBe('saved bracket unreadable, dropped: check open orders');
+    expect(first.storage.has('bracket')).toBe(false);
+  });
+
   it('forgets a finished bracket so the next one can start', async () => {
     const { manager, exchange, storage } = setup();
     exchange.answers.entry = { status: 'filled', filledSz: 0 };
