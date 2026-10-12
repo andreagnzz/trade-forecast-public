@@ -63,6 +63,8 @@ export const useExecutionStore = defineStore('execution', () => {
     if (account.rules.lock) return 'Locked until 00:00 UTC';
     if (active.value) return 'Bracket running';
     if (stray.value) return 'Coin busy';
+    // With the socket down, quote and mark are stale: sizing and the crossed-stop check too.
+    if (terminal.connection !== 'open') return 'Market data disconnected';
     return null;
   });
   // Live sizing needs the account's equity, caps and fees: never the Preview defaults.

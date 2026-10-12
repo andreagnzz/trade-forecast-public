@@ -85,6 +85,15 @@ test('disconnected: a closed socket shows the reconnect banner', async ({ page }
   await capture(page, 'disconnected');
 });
 
+test('disconnected: Send is refused while the market feed is down', async ({ page }) => {
+  await page.routeWebSocket(/hyperliquid/, (ws) => ws.close());
+  await openTerminal(page);
+  await patchStore(page, 'account', { master: MASTER });
+  const send = page.getByTestId('send');
+  await expect(send).toHaveText('Market data disconnected');
+  await expect(send).toBeDisabled();
+});
+
 test('attention: a crossing take-profit offers three choices', async ({ page }) => {
   await openTerminal(page);
   await showBracket(page, { attention: 'tp_would_cross' });
