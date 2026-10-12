@@ -30,7 +30,12 @@ export function reconcile(
       else state.status = 'live';
       if (leg === 'entry' && d.attention === 'entry_unknown') d.attention = null;
       if (leg === 'tp') Object.assign(d.tp, { size, prev: null });
-    } else if (state.status === 'sending' || (leg === 'entry' && state.status === 'live')) {
+    } else if (
+      state.status === 'sending' ||
+      // A fired exit whose fills the previous page never saw: its order status says what it closed.
+      state.status === 'filling' ||
+      (leg === 'entry' && state.status === 'live')
+    ) {
       commands.push({ type: 'query', cloid: legCloid(d, leg) });
     } else if (state.status === 'canceling') {
       state.status = 'done';

@@ -844,6 +844,12 @@ describe('reconstruction', () => {
     expect(reloaded.commands).toEqual([]);
     expect(reloaded.state.attention).toBe('entry_unknown');
   });
+  it('asks for the fate of a fired stop whose fills did not come before the reload', () => {
+    const fired = run(filled(), order(c('sl'), 'triggered')).state;
+    const { commands } = run(fired, { type: 'snapshot', open: [], fills: [] });
+    expect(commands).toEqual([{ type: 'query', cloid: c('sl') }]);
+  });
+
   it('drops entry_unknown once a snapshot finds the entry resting, so dismiss no longer applies', () => {
     const lost = run(
       working(),
