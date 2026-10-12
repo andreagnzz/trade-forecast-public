@@ -609,6 +609,16 @@ describe('close and OCO cleanup', () => {
     ]);
   });
 
+  it('refuses another market close once the close has used every seq, instead of throwing', () => {
+    let state = filled();
+    for (let seq = 0; seq <= 255; seq++) {
+      state = run(state, { type: 'close', px: 81_000 }, order(c('close', seq), 'canceled')).state;
+    }
+    const { commands } = run(state, { type: 'close', px: 81_000 });
+    expect(commands).toEqual([]);
+    expect(state.attention).toBe('close_failed');
+  });
+
   it('finishes a cancel whose order the exchange never saw', () => {
     const flat = run(resting(), { type: 'cancel_entry' }, { type: 'unknown', cloid: c('entry') });
     expect(flat.state.entry.status).toBe('done');
