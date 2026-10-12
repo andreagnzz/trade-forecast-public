@@ -812,6 +812,18 @@ describe('stop lost mid-bracket', () => {
     });
     expect(late.commands).toContainEqual({ type: 'cancel', cloid: c('sl', 1) });
   });
+
+  it('cancels a lost stop that lands after its replacement was sent', () => {
+    const lost = run(
+      openBracket(PLAN).state,
+      { type: 'uncertain', cloid: c('sl') },
+      { type: 'unknown', cloid: c('sl') },
+      { type: 'retry_due', leg: 'sl' },
+    ).state;
+    const { state, commands } = run(lost, order(c('sl'), 'open'));
+    expect(commands).toEqual([{ type: 'cancel', cloid: c('sl') }]);
+    expect(state.sl.seq).toBe(1);
+  });
 });
 
 describe('reconstruction', () => {

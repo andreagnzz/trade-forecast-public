@@ -1,8 +1,8 @@
 import { exitIsBuy, roundSize, type Attention, type Bracket, type BracketFill } from './bracket';
-import { parseCloid, type LegName } from './cloid';
+import { isCloid, parseCloid, type Cloid, type LegName } from './cloid';
 
 // One of this bracket's orders, whatever its seq.
-export function ownLeg(d: Bracket, cloid: string) {
+function ownLeg(d: Bracket, cloid: string) {
   const parsed = parseCloid(cloid);
   if (parsed?.prefix !== d.plan.prefix || parsed.bracketId !== d.plan.id) return null;
   return parsed;
@@ -13,6 +13,14 @@ export function currentLeg(d: Bracket, cloid: string): LegName | null {
   const parsed = ownLeg(d, cloid);
   if (!parsed) return null;
   return d[parsed.leg].seq === parsed.seq ? parsed.leg : null;
+}
+
+// An order of this bracket under a seq it no longer tracks, such as a lost request that landed
+// late. The order a modify in flight replaces still rests until the modify lands.
+export function isStale(d: Bracket, cloid: string): cloid is Cloid {
+  const parsed = ownLeg(d, cloid);
+  if (!parsed || !isCloid(cloid) || currentLeg(d, cloid)) return false;
+  return !(parsed.leg === 'tp' && parsed.seq === d.tp.prev?.seq);
 }
 
 type ExitLeg = 'sl' | 'tp' | 'close';

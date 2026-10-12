@@ -8,7 +8,7 @@ import {
   type Step,
 } from './bracket';
 import { applyChoice } from './choices';
-import { alert, applyFill, currentLeg, giveUp, replace, revertTp } from './legs';
+import { alert, applyFill, currentLeg, giveUp, isStale, replace, revertTp } from './legs';
 import { reconcile } from './reconcile';
 import { settle } from './settle';
 
@@ -47,7 +47,11 @@ const TP_ATTENTION = {
 
 function onOrder(d: Bracket, event: OrderEvent): BracketCommand[] {
   const leg = currentLeg(d, event.cloid);
-  if (!leg) return [];
+  if (!leg) {
+    return event.status === 'open' && isStale(d, event.cloid)
+      ? [{ type: 'cancel', cloid: event.cloid }]
+      : [];
+  }
   const state = d[leg];
   if (event.status === 'open') {
     // Still resting after we asked to cancel it: that cancel never landed.

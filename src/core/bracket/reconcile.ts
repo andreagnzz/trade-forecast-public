@@ -1,17 +1,8 @@
 import { LEGS, legCloid, type Bracket, type BracketCommand, type BracketEvent } from './bracket';
-import { isCloid } from './cloid';
-import { applyFill, currentLeg, ownLeg } from './legs';
+import { applyFill, isStale } from './legs';
 
 function staleOrders(d: Bracket, open: { cloid: string }[]): BracketCommand[] {
-  const commands: BracketCommand[] = [];
-  for (const { cloid } of open) {
-    const parsed = ownLeg(d, cloid);
-    if (!parsed || !isCloid(cloid) || currentLeg(d, cloid)) continue;
-    // The order a modify in flight replaces still rests until the modify lands.
-    if (parsed.leg === 'tp' && parsed.seq === d.tp.prev?.seq) continue;
-    commands.push({ type: 'cancel', cloid });
-  }
-  return commands;
+  return open.flatMap(({ cloid }) => (isStale(d, cloid) ? [{ type: 'cancel', cloid }] : []));
 }
 
 // A leg still in flight may simply not have reached the book yet: ask, never assume it is gone.
