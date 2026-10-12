@@ -50,7 +50,7 @@ export const randomBracketId = () =>
   ).join('');
 
 export type SendRefusal =
-  'bracket_active' | 'coin_busy' | 'blocked' | 'stop_crossed' | 'stats_unavailable';
+  'bracket_active' | 'coin_busy' | 'blocked' | 'no_mark' | 'stop_crossed' | 'stats_unavailable';
 
 const QUERY_RETRY_MS = 1000;
 const SYNC_RETRY_MS = 2000;
@@ -168,6 +168,7 @@ export function createBracketManager(deps: BracketManagerDeps) {
   let starting = false;
   async function send(plan: BracketPlan, markPx: number): Promise<SendRefusal | null> {
     if (starting || (saved && !saved.bracket.outcome)) return 'bracket_active';
+    if (!(Number.isFinite(markPx) && markPx > 0)) return 'no_mark';
     if (stopCrossed(plan, markPx)) return 'stop_crossed';
     starting = true;
     try {

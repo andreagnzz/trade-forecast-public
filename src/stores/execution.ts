@@ -29,6 +29,7 @@ const REFUSALS: Record<SendRefusal, string> = {
   bracket_active: 'not sent: bracket running',
   coin_busy: 'not sent: position or orders on this coin (one net position per coin)',
   blocked: 'not sent: locked until 00:00 UTC',
+  no_mark: 'not sent: no mark price',
   stop_crossed: 'not sent: stop already through mark',
   stats_unavailable: 'not sent: day stats unavailable',
 };

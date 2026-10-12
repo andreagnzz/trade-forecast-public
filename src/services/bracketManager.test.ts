@@ -313,6 +313,12 @@ describe('BracketManager', () => {
     },
   );
 
+  it.each([NaN, 0, Infinity])('refuses a short while the mark is %s', async (mark) => {
+    const { manager, exchange } = setup();
+    expect(await manager.send({ ...PLAN, side: 'short', stopPx: 81_000 }, mark)).toBe('no_mark');
+    expect(exchange.calls).toEqual([]);
+  });
+
   it('reports a failed sync and tries again', async () => {
     const first = setup();
     await first.manager.send(PLAN, MARK);
