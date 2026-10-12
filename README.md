@@ -50,7 +50,7 @@ Evidence:
 
 - Unit and property tests (`pnpm test`); line coverage of `src/core` is above 99% (`pnpm test:coverage`). A fast-check property drives the bracket reducer through random fills, rejects, lost answers, lost stops and reloads, and checks that the stop is never cancelled with a position open, that no client order id is sent twice, that the entry is placed at most once, and that a closed bracket leaves a flat position and an empty book.
 - Sizing properties: the loss at the stop, fees and slippage buffer included, never exceeds the requested risk; sizes are whole lots and round down; every sized leg is at or above the $10 minimum.
-- Testnet end-to-end run on a separate account (`pnpm e2e:testnet`): full market bracket, crossing take-profit, outside close, reload and one-bullet refusal 10/10 each; partial limit fill 3/4; stop hit by the market 4 documented runs. The stop is live about 1.3 s (median) before the first fill.
+- Testnet end-to-end run on a separate account (`pnpm e2e:testnet`): full market bracket, crossing take-profit, outside close, reload and one-bullet refusal 10/10 each; partial limit fill 3/4; stop hit by the market: 4 runs. The stop is live about 1.3 s (median) before the first fill.
 - Playwright (`pnpm test:e2e`): dragging the stop resizes the position without exceeding the requested risk, typing in the risk field never moves a line, a drag stays under 20 ms per frame at the 95th percentile, and each terminal state is captured at desktop and phone width.
 
 ## Limits
@@ -59,6 +59,7 @@ Evidence:
 - The stop is a trigger market order: the fill can slip past the stop price. Sizing keeps a slippage buffer, but a fast market can exceed it.
 - The take-profit is placed or resized only while a tab is open. The stop is on the exchange regardless, so a limit entry filled with the tab closed is protected but has no take-profit, or one that is too small, until the tab comes back.
 - The daily rules and the running bracket are stored in this browser only. Another device or client is not bound by them.
+- Round-trips are counted from fills, net of fees; funding is not included, so a trade that is green after fees but red after funding does not spend the one bullet.
 
 ## Run locally
 
@@ -66,11 +67,12 @@ Evidence:
 pnpm install
 pnpm dev
 pnpm typecheck && pnpm lint && pnpm test
+pnpm exec playwright install chromium && pnpm test:e2e
 ```
 
 Requires Node 22.12+ and pnpm 10.
 
-`pnpm e2e:testnet` runs the testnet scenarios. It reads `HL_E2E_AGENT_KEY` from `.env.local`: the agent key of a separate testnet account used only for these runs, so its losing round-trips never touch the account you trade with.
+`pnpm e2e:testnet` runs the testnet scenarios. Copy `.env.example` to `.env.local` and set `HL_E2E_AGENT_KEY`: the agent key of a separate testnet account used only for these runs, so its losing round-trips never touch the account you trade with.
 
 `pnpm demo:record [url]` records a 20-second demo video to `demo/demo.webm` against a running dev or preview server.
 
@@ -79,4 +81,3 @@ Requires Node 22.12+ and pnpm 10.
 - Preview mode: live mainnet BTC candles, best bid/ask and mark price (read-only), a hypothetical equity, and draggable entry, stop and take-profit lines. The size, dollar risk, fees, gain and R:R update on every drag; the stop label shows the dollar risk and the distance from entry and mark, the take-profit label the net gain and the R multiple. Keyboard: `1` `2` `3` place a line at the cursor, `X` long/short, `M` market/limit, `R` focus risk, `Enter` send, `Esc` reset, `?` help.
 - Testnet execution: agent key connection, the bracket described above, optional daily rules (one bullet, hard loss limit) that refuse exposure-increasing orders until 00:00 UTC while cancels and reduce-only orders always go through.
 - Terminal states: loading, market data error with retry, market or account feed disconnected, take-profit attention, unprotected position, daily lock. A first-run hint and the `?` shortcut list explain the controls.
-- Public preview: https://trade-forecast-pi.vercel.app.
