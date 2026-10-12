@@ -34,6 +34,7 @@ type Action =
   | { kind: 'entry_fill'; lots: number }
   | { kind: 'tp_fill'; lots: number; late: boolean }
   | { kind: 'reload'; land: boolean }
+  | { kind: 'resync' }
   | { kind: 'sl_fire'; late: boolean }
   | { kind: 'sl_lost' | 'close' | 'sl_only' };
 
@@ -63,6 +64,7 @@ const action: fc.Arbitrary<Action> = fc.oneof(
         kind: fc.constantFrom('sl_lost' as const, 'close' as const, 'sl_only' as const),
       }),
       fc.record({ kind: fc.constant('reload' as const), land: fc.boolean() }),
+      fc.record({ kind: fc.constant('resync' as const) }),
     ),
   },
 );
@@ -257,7 +259,13 @@ function simulate(actions: Action[]) {
         for (const command of pending.splice(0)) if (a.land) execute(command, 'ok');
         muted = false;
         const open = [...book].map(([cloid, o]) => ({ cloid, size: round(o.size - o.filled) }));
-        feed({ type: 'snapshot', open, fills: [...fills] });
+        feed({ type: 'snapshot', reload: true, open, fills: [...fills] });
+        break;
+      }
+      case 'resync': {
+        // The same page reads the book while its own requests are still in flight.
+        const open = [...book].map(([cloid, o]) => ({ cloid, size: round(o.size - o.filled) }));
+        feed({ type: 'snapshot', reload: false, open, fills: [...fills] });
       }
     }
     if ([...book.keys()].filter((cloid) => legOf(cloid) === 'tp').length > 1) {
@@ -272,7 +280,7 @@ function simulate(actions: Action[]) {
 }
 
 describe('bracket against a simulated exchange', () => {
-  it('keeps every invariant under random fills, rejects, lost stops and reloads', () => {
+  it('keeps every invariant under random fills, rejects, lost stops, reloads and resyncs', () => {
     fc.assert(
       fc.property(fc.array(action, { maxLength: 80 }), (actions) => {
         const { state, position, book, entryPlaces, violations } = simulate(actions);

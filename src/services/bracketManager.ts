@@ -200,7 +200,7 @@ export function createBracketManager(deps: BracketManagerDeps) {
   }
 
   // Returns false when the exchange could not be read; it tries again on its own.
-  async function reconcile(): Promise<boolean> {
+  async function reconcile(reload = false): Promise<boolean> {
     if (!saved || saved.bracket.outcome) return true;
     const { coin } = saved.bracket.plan;
     const { since } = saved;
@@ -212,12 +212,13 @@ export function createBracketManager(deps: BracketManagerDeps) {
       lastError = `sync failed, retrying: ${messageOf(error)}`;
       notify();
       clock.setTimeout(() => {
-        void reconcile();
+        void reconcile(reload);
       }, SYNC_RETRY_MS);
       return false;
     }
     dispatch({
       type: 'snapshot',
+      reload,
       open: open.flatMap((o) =>
         o.coin === coin && o.cloid ? [{ cloid: o.cloid, size: o.sz }] : [],
       ),
@@ -245,7 +246,7 @@ export function createBracketManager(deps: BracketManagerDeps) {
     // The shape check is shallow: a blob missing a deeper field throws in the reducer, before any
     // command is queued.
     try {
-      await reconcile();
+      await reconcile(true);
     } catch {
       dropSaved();
     }

@@ -804,6 +804,7 @@ describe('stop lost mid-bracket', () => {
     );
     const late = run(retried.state, {
       type: 'snapshot',
+      reload: true,
       open: [
         { cloid: c('sl', 1), size: 0 },
         { cloid: c('tp'), size: 0.003 },
@@ -830,6 +831,7 @@ describe('reconstruction', () => {
   it('keeps a resting unfilled entry and its stop across a reload', () => {
     const { state, commands } = run(resting(), {
       type: 'snapshot',
+      reload: true,
       open: [
         { cloid: c('sl'), size: 0 },
         { cloid: c('entry'), size: 0.003 },
@@ -843,6 +845,7 @@ describe('reconstruction', () => {
   it('queries a leg still in flight instead of assuming it is gone', () => {
     const { state, commands } = run(working(), {
       type: 'snapshot',
+      reload: true,
       open: [{ cloid: c('sl'), size: 0 }],
       fills: [],
     });
@@ -857,7 +860,12 @@ describe('reconstruction', () => {
         { cloid: c('sl'), size: 0 },
         { cloid: c('tp'), size: 0.003 },
       ].filter((o) => o.cloid !== c(leg));
-      const { state, commands } = run(filled(), { type: 'snapshot', open, fills: [] });
+      const { state, commands } = run(filled(), {
+        type: 'snapshot',
+        reload: true,
+        open,
+        fills: [],
+      });
       expect(commands).toEqual([{ type: 'query', cloid: c(leg) }]);
       expect(state[leg]).toMatchObject({ seq: 0, status: 'live' });
     },
@@ -876,6 +884,7 @@ describe('reconstruction', () => {
     const saved = run(resting(), { type: 'fill', ...first }, order(c('tp'), 'open')).state;
     const { state, commands } = run(saved, {
       type: 'snapshot',
+      reload: true,
       open: [
         { cloid: c('sl'), size: 0 },
         { cloid: c('entry'), size: 0.001 },
@@ -910,6 +919,7 @@ describe('reconstruction', () => {
   it('places a missing take-profit for an entry filled while the tab was closed', () => {
     const { commands } = run(resting(), {
       type: 'snapshot',
+      reload: true,
       open: [{ cloid: c('sl'), size: 0 }],
       fills: [
         { tid: 902, cloid: c('entry'), isBuy: true, size: 0.003, closedPnl: 0, fee: 0, time: T0 },
@@ -928,7 +938,7 @@ describe('reconstruction', () => {
   it('places the stop again when the book lost it while a position is open', () => {
     const lost = run(
       filled(),
-      { type: 'snapshot', open: [{ cloid: c('tp'), size: 0.003 }], fills: [] },
+      { type: 'snapshot', reload: true, open: [{ cloid: c('tp'), size: 0.003 }], fills: [] },
       order(c('sl'), 'canceled'),
     );
     expect(lost.commands).toEqual([
@@ -939,11 +949,30 @@ describe('reconstruction', () => {
     expect(commands[0]).toMatchObject({ type: 'place', cloid: c('sl', 1) });
   });
 
+  it('keeps a fresh bracket and its retry timer on a resync of the same page', () => {
+    const sending = run(
+      openBracket(PLAN).state,
+      { type: 'uncertain', cloid: c('sl') },
+      { type: 'unknown', cloid: c('sl') },
+    );
+    const { state, commands } = run(sending.state, {
+      type: 'snapshot',
+      reload: false,
+      open: [],
+      fills: [],
+    });
+    expect(commands).toEqual([]);
+    expect(state.cancelling).toBeNull();
+    expect(state.sl.status).toBe('waiting');
+    expect(state.entry.status).toBe('idle');
+  });
+
   it('does not send an entry that was never sent before the reload', () => {
     const halfway = run(openBracket(PLAN).state, order(c('sl'), 'open')).state;
     const reloaded = { ...halfway, entry: { ...halfway.entry, status: 'idle' as const } };
     const { commands } = run(reloaded, {
       type: 'snapshot',
+      reload: true,
       open: [{ cloid: c('sl'), size: 0 }],
       fills: [],
     });
@@ -954,6 +983,7 @@ describe('reconstruction', () => {
     const modifying = run(resting(), buy(0.001), order(c('tp'), 'open'), buy(0.001)).state;
     const { commands } = run(modifying, {
       type: 'snapshot',
+      reload: true,
       open: [
         { cloid: c('sl'), size: 0 },
         { cloid: c('entry'), size: 0.001 },
@@ -972,6 +1002,7 @@ describe('reconstruction', () => {
     );
     const reloaded = run(lost.state, {
       type: 'snapshot',
+      reload: true,
       open: [{ cloid: c('sl'), size: 0 }],
       fills: [],
     });
@@ -980,7 +1011,7 @@ describe('reconstruction', () => {
   });
   it('asks for the fate of a fired stop whose fills did not come before the reload', () => {
     const fired = run(filled(), order(c('sl'), 'triggered')).state;
-    const { commands } = run(fired, { type: 'snapshot', open: [], fills: [] });
+    const { commands } = run(fired, { type: 'snapshot', reload: true, open: [], fills: [] });
     expect(commands).toEqual([
       { type: 'query', cloid: c('sl') },
       { type: 'query', cloid: c('tp') },
@@ -995,6 +1026,7 @@ describe('reconstruction', () => {
     ).state;
     const found = run(lost, {
       type: 'snapshot',
+      reload: true,
       open: [
         { cloid: c('sl'), size: 0 },
         { cloid: c('entry'), size: 0.003 },

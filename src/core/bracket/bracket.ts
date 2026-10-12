@@ -92,7 +92,13 @@ export type BracketEvent =
   | { type: 'uncertain' | 'unknown'; cloid: string }
   | ({ type: 'fill' } & BracketFill)
   | { type: 'retry_due' | 'fills_due'; leg: 'sl' | 'tp' }
-  | { type: 'snapshot'; open: { cloid: string; size: number }[]; fills: BracketFill[] }
+  | {
+      type: 'snapshot';
+      // A reload lost the previous page's requests and timers; a resync of the same page did not.
+      reload: boolean;
+      open: { cloid: string; size: number }[];
+      fills: BracketFill[];
+    }
   | { type: 'cancel_entry' | 'sl_only' | 'dismiss' }
   | { type: 'close' | 'tp_at'; px: number };
 

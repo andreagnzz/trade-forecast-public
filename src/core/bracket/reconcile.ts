@@ -22,7 +22,8 @@ export function reconcile(
       if (leg === 'entry' && d.attention === 'entry_unknown') d.attention = null;
       if (leg === 'tp') Object.assign(d.tp, { size, prev: null });
     } else if (
-      state.status === 'sending' ||
+      // On the same page a request in flight still gets its answer; asking first races it.
+      (event.reload && state.status === 'sending') ||
       // A fired exit whose fills the previous page never saw: its order status says what it closed.
       state.status === 'filling' ||
       // The snapshot may predate the leg reaching the book; a cancelled order stays queryable.
@@ -31,10 +32,10 @@ export function reconcile(
       commands.push({ type: 'query', cloid: legCloid(d, leg) });
     } else if (state.status === 'canceling') {
       state.status = 'done';
-    } else if (state.status === 'waiting') {
+    } else if (event.reload && state.status === 'waiting') {
       // The retry timer died with the previous page.
       state.status = 'idle';
-    } else if (leg === 'entry' && state.status === 'idle') {
+    } else if (event.reload && leg === 'entry' && state.status === 'idle') {
       // Nothing was sent before the reload: the price has moved, so nothing is sent after it.
       state.status = 'done';
     }
