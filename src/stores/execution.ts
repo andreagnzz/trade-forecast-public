@@ -5,6 +5,7 @@ import { makeCloid, parseCloid, type Cloid } from '../core/bracket/cloid';
 import type { Rules } from '../core/rules';
 import { loadFills, loadOpenOrders, loadPosition, subscribeAccount } from '../hl/account';
 import { connectAgent, type ExecutionClient } from '../hl/exchange';
+import { errorText } from '../hl/errors';
 import { exitPx, snapPrice } from '../hl/format';
 import {
   createBracketManager,
@@ -13,7 +14,7 @@ import {
   type BracketView,
   type SendRefusal,
 } from '../services/bracketManager';
-import { createOrderService, type OrderService } from '../services/orderService';
+import { createOrderService, type OrderService, type SendResult } from '../services/orderService';
 import { useAccountStore } from './account';
 import { MAX_SLIPPAGE, MIN_NOTIONAL_USD, useTerminalStore } from './terminal';
 
@@ -32,6 +33,13 @@ const REFUSALS: Record<SendRefusal, string> = {
   stats_unavailable: 'not sent: day stats unavailable',
 };
 
+// Stray actions are reduce-only or cancels: the gate never blocks them.
+export function strayNotice(result: SendResult): string | null {
+  if (result.status === 'rejected') return errorText(result.error);
+  if (result.status === 'uncertain') return 'uncertain: check open orders';
+  return null;
+}
+
 // Kept out of Pinia state: the client closes over the signing key and devtools must never see
 // it. Only the master address and plain data reach the stores.
 let orders: OrderService | null = null;
@@ -44,6 +52,7 @@ export const useExecutionStore = defineStore('execution', () => {
   const keyError = ref<string | null>(null);
   const view = shallowRef<BracketView>({ bracket: null, lastError: null });
   const notice = ref<string | null>(null);
+  const strayBusy = ref(false);
   const accountFeed = ref<'connecting' | 'open' | 'closed'>('connecting');
 
   const bracket = computed(() => view.value.bracket);
@@ -218,25 +227,33 @@ export const useExecutionStore = defineStore('execution', () => {
     manager?.choose({ type: 'tp_at', px: snapPrice(touch, instrument.szDecimals) });
   }
 
+  async function runStray(command: Parameters<OrderService['send']>[1]) {
+    if (!orders) return;
+    strayBusy.value = true;
+    try {
+      notice.value = strayNotice(await orders.send(terminal.coin, command));
+    } catch {
+      notice.value = 'not sent: testnet unreachable';
+    } finally {
+      strayBusy.value = false;
+    }
+    account.refresh();
+  }
+
   async function closeStray() {
     const position = account.position;
-    if (!orders || !position || position.size === 0) return;
+    if (!position || position.size === 0) return;
     const isBuy = !position.isLong;
     const px = marketExitPx(isBuy);
     if (!px) return;
-    await orders.send(terminal.coin, {
+    await runStray({
       type: 'place',
       cloid: makeCloid('7466', randomBracketId(), 'close', 0),
       order: { isBuy, px, size: position.size, reduceOnly: true, type: 'ioc' },
     });
-    account.refresh();
   }
 
-  async function cancelStray(cloid: Cloid) {
-    if (!orders) return;
-    await orders.send(terminal.coin, { type: 'cancel', cloid });
-    account.refresh();
-  }
+  const cancelStray = (cloid: Cloid) => runStray({ type: 'cancel', cloid });
 
   function setRules(patch: Partial<Rules>) {
     notice.value = account.setRules(patch) ? null : 'rejected: loss limit must be positive';
@@ -255,6 +272,7 @@ export const useExecutionStore = defineStore('execution', () => {
     blocker,
     canSend,
     notice,
+    strayBusy,
     accountFeed,
     connect,
     resume,

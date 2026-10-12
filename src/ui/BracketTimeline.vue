@@ -139,12 +139,17 @@ const tpChoices = computed(() => isTpAttention(execution.bracket?.attention ?? n
         protects it on the exchange.
       </span>
       <span class="choices">
-        <button v-if="(account.position?.size ?? 0) > 0" @click="execution.closeStray()">
+        <button
+          v-if="(account.position?.size ?? 0) > 0"
+          :disabled="execution.strayBusy"
+          @click="execution.closeStray()"
+        >
           Close at market (reduce-only)
         </button>
         <button
           v-for="order in execution.strayOrders"
           :key="order.cloid"
+          :disabled="execution.strayBusy"
           @click="execution.cancelStray(order.cloid)"
         >
           Cancel {{ order.reduceOnly ? 'reduce-only' : '' }} order {{ order.size }}
