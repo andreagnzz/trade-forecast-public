@@ -1,0 +1,21 @@
+{
+  "coin": "BTC",
+  "fills": [
+    {
+      "side": "buy",
+      "px": 83102,
+      "sz": 0.00019,
+      "startPosition": 0,
+      "closedPnl": 0,
+      "fee": 0.007105
+    },
+    {
+      "side": "sell",
+      "px": 83101,
+      "sz": 0.00019,
+      "startPosition": 0.00019,
+      "closedPnl": -0.00019,
+      "fee": 0.007105
+    }
+  ]
+}

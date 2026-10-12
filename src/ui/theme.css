@@ -1,0 +1,56 @@
+:root {
+  --bg: #0d0f12;
+  --surface: #13161b;
+  --raised: #1a1e25;
+  --rule: #22272f;
+  --text: #d5d9df;
+  --muted: #7c8592;
+  --long: #1fbf75;
+  --short: #f04a5d;
+  --entry: #e3b341;
+  --warn: #e3b341;
+  --focus: #e3b341;
+  --font-mono: ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace;
+  --font-sans: -apple-system, 'Segoe UI', 'Helvetica Neue', sans-serif;
+
+  color-scheme: dark;
+  background: var(--bg);
+  color: var(--text);
+  font: 12px/1.4 var(--font-sans);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+}
+
+button,
+input {
+  font: inherit;
+  color: inherit;
+}
+
+:focus-visible {
+  outline: 1px solid var(--focus);
+  outline-offset: 1px;
+}
+
+.num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.long {
+  color: var(--long);
+}
+
+.short {
+  color: var(--short);
+}
+
+.muted {
+  color: var(--muted);
+}

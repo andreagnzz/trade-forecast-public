@@ -1,0 +1,53 @@
+{
+  "name": "trade-forecast",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@10.30.0",
+  "engines": {
+    "node": ">=22.12"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "pnpm typecheck && vite build",
+    "preview": "vite preview",
+    "typecheck": "vue-tsc -b",
+    "lint": "eslint . && prettier --check .",
+    "format": "prettier --write .",
+    "knip": "knip",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "test:e2e": "playwright test",
+    "e2e:testnet": "tsx --env-file=.env.local scripts/e2e-testnet.ts",
+    "demo:record": "tsx scripts/record-demo.ts"
+  },
+  "dependencies": {
+    "@nktkas/hyperliquid": "0.33.3",
+    "lightweight-charts": "5.2.1",
+    "pinia": "^4.0.3",
+    "viem": "^2.57.4",
+    "vue": "^3.5.43"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.64.0",
+    "@types/node": "^22.20.5",
+    "@vitejs/plugin-vue": "^6.0.10",
+    "@vitest/coverage-v8": "^5.0.3",
+    "@vue/tsconfig": "^0.9.1",
+    "eslint": "^10.12.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-vue": "^10.11.1",
+    "fast-check": "^4.10.2",
+    "globals": "^17.13.0",
+    "jiti": "^2.7.0",
+    "knip": "^6.41.0",
+    "prettier": "^3.9.10",
+    "tsx": "^4.23.15",
+    "typescript": "~6.0.3",
+    "typescript-eslint": "^8.71.1",
+    "vite": "^8.3.4",
+    "vitest": "^5.0.3",
+    "vue-tsc": "^3.3.13"
+  }
+}
