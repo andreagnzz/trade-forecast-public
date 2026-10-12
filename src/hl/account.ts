@@ -145,7 +145,7 @@ export async function loadLimits(
     info.activeAssetData({ user: master, coin }),
   ]);
   const usdc = spot.balances.find((b) => b.coin === 'USDC');
-  // maxTradeSzs is [buy, sell]: with a long open the buy cap shrinks (observed SP4).
+  // maxTradeSzs is [buy, sell]: with a long open, the buy cap shrinks (observed on testnet).
   const [buy, sell] = asset.maxTradeSzs;
   return {
     equity: Number(unified ? (usdc?.total ?? 0) : perp.marginSummary.accountValue),
