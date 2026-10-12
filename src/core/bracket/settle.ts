@@ -14,6 +14,8 @@ import {
 import type { LegName } from './cloid';
 import { alertFailed, nextSeq, replace } from './legs';
 
+const EXCEPT_SL = LEGS.filter((leg) => leg !== 'sl');
+
 function cancelLive(d: Bracket, legs: readonly LegName[]): BracketCommand[] {
   const commands: BracketCommand[] = [];
   for (const leg of legs) {
@@ -43,7 +45,10 @@ function windDown(d: Bracket, outcome: NonNullable<Bracket['outcome']>): Bracket
   // An entry the exchange has no record of may still land: only the trader's dismiss ends it.
   if (d.attention === 'entry_unknown') return [];
   if (d.entry.status !== 'idle' && !entryFinished(d)) return [];
-  const commands = cancelLive(d, LEGS);
+  // A dismissed entry may still land: its stop keeps resting, flat or not, until the trader
+  // cancels it.
+  const legs = outcome.kind === 'cancelled' && outcome.reason === 'dismissed' ? EXCEPT_SL : LEGS;
+  const commands = cancelLive(d, legs);
   if (!inFlight(d)) d.outcome = outcome;
   return commands;
 }

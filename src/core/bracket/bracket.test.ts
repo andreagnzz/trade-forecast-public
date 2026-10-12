@@ -262,7 +262,13 @@ describe('entry without fill', () => {
     const { state, commands } = run(working(), { type: 'unknown', cloid: c('entry') });
     expect(commands).toEqual([]);
     expect(state.attention).toBe('entry_unknown');
-    expect(run(state, { type: 'dismiss' }).commands).toEqual([{ type: 'cancel', cloid: c('sl') }]);
+  });
+
+  it('leaves the stop resting on dismiss, in case the unknown entry lands late', () => {
+    const lost = run(working(), { type: 'unknown', cloid: c('entry') }).state;
+    const { state, commands } = run(lost, { type: 'dismiss' });
+    expect(commands).toEqual([]);
+    expect(state.outcome).toEqual({ kind: 'cancelled', reason: 'dismissed' });
   });
 
   it('resumes when a fill shows the unknown entry did land', () => {

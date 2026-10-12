@@ -113,7 +113,7 @@ const tpChoices = computed(() => isTpAttention(execution.bracket?.attention ?? n
             v-else-if="execution.bracket.attention === 'entry_unknown'"
             @click="execution.dismiss()"
           >
-            Dismiss and remove the stop
+            Dismiss, keep the stop
           </button>
           <button v-else-if="!execution.unprotected" @click="execution.closeAtMarket()">
             Close at market (reduce-only)
