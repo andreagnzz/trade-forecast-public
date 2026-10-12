@@ -33,6 +33,7 @@ interface Exchange {
   open: AccountOrder[];
   fills: AccountFill[];
   positionSz: number;
+  statusFailures?: number;
 }
 
 function setup(
@@ -75,6 +76,10 @@ function setup(
     },
     orderStatus: (_coin: string, cloid: Cloid) => {
       exchange.calls.push(`query ${parseCloid(cloid)?.leg ?? '?'}`);
+      if (exchange.statusFailures) {
+        exchange.statusFailures -= 1;
+        throw new Error('status read failed');
+      }
       return Promise.resolve(exchange.status[cloid] ?? { kind: 'unknown' as const });
     },
   };
@@ -287,6 +292,17 @@ describe('BracketManager', () => {
     await manager.settled();
     expect(view().lastError).toBe('internal error: signer crashed');
     expect(exchange.calls).toEqual(['query sl']);
+  });
+
+  it('asks again about an order whose status read throws', async () => {
+    const { manager, exchange, timers } = setup();
+    exchange.statusFailures = 1;
+    await manager.send({ ...PLAN, coin: 'THROWS' }, MARK);
+    await manager.settled();
+    expect(exchange.calls).toEqual(['query sl']);
+    for (const run of timers.splice(0)) run();
+    await manager.settled();
+    expect(exchange.calls).toEqual(['query sl', 'query sl']);
   });
 
   it('starts one bracket only when Send is pressed twice quickly', async () => {

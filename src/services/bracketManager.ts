@@ -97,9 +97,16 @@ export function createBracketManager(deps: BracketManagerDeps) {
       .catch((error: unknown) => {
         lastError = `internal error: ${messageOf(error)}`;
         notify();
-        // Whether the order left is unknown: ask the exchange rather than leave it in flight.
+        // Whether the order left, or the cancel landed, is unknown: ask the exchange rather than
+        // leave it in flight.
         if (command.type === 'place') dispatch({ type: 'uncertain', cloid: command.cloid });
         if (command.type === 'modify') dispatch({ type: 'uncertain', cloid: command.next });
+        if (command.type === 'cancel' || command.type === 'query') {
+          const query = { type: 'query', cloid: command.cloid } as const;
+          clock.setTimeout(() => {
+            if (stillCurrent(query.cloid)) enqueue(query);
+          }, QUERY_RETRY_MS);
+        }
       });
   }
 
