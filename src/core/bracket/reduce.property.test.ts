@@ -31,11 +31,11 @@ type Fate = 'ok' | 'reject' | 'lost' | 'dropped';
 
 type Action =
   | { kind: 'ack'; pick: number; fate: Fate }
-  | { kind: 'close' | 'sl_only' }
   | { kind: 'entry_fill'; lots: number }
-  | { kind: 'tp_fill'; lots: number }
+  | { kind: 'tp_fill'; lots: number; late: boolean }
   | { kind: 'reload'; land: boolean }
-  | { kind: 'sl_fire' | 'sl_lost' };
+  | { kind: 'sl_fire'; late: boolean }
+  | { kind: 'sl_lost' | 'close' | 'sl_only' };
 
 const lots = fc.integer({ min: 1, max: 3000 });
 const action: fc.Arbitrary<Action> = fc.oneof(
@@ -51,17 +51,16 @@ const action: fc.Arbitrary<Action> = fc.oneof(
     }),
   },
   { weight: 3, arbitrary: fc.record({ kind: fc.constant('entry_fill' as const), lots }) },
-  { weight: 2, arbitrary: fc.record({ kind: fc.constant('tp_fill' as const), lots }) },
+  {
+    weight: 2,
+    arbitrary: fc.record({ kind: fc.constant('tp_fill' as const), lots, late: fc.boolean() }),
+  },
   {
     weight: 1,
     arbitrary: fc.oneof(
+      fc.record({ kind: fc.constant('sl_fire' as const), late: fc.boolean() }),
       fc.record({
-        kind: fc.constantFrom(
-          'sl_fire' as const,
-          'sl_lost' as const,
-          'close' as const,
-          'sl_only' as const,
-        ),
+        kind: fc.constantFrom('sl_lost' as const, 'close' as const, 'sl_only' as const),
       }),
       fc.record({ kind: fc.constant('reload' as const), land: fc.boolean() }),
     ),
@@ -95,6 +94,12 @@ function simulate(actions: Action[]) {
       if (command.type === 'cancel' && legOf(command.cloid) === 'sl' && position > 0) {
         violations.push('stop cancelled with a position open');
       }
+      // Only fills still on their way can make the bracket see a position the exchange closed.
+      const sent =
+        command.type === 'modify' ? command.next : command.type === 'place' && command.cloid;
+      if (sent && legOf(sent) === 'tp' && position <= 0) {
+        violations.push('take-profit sent with no position');
+      }
     }
     pending.push(...step.commands);
   };
@@ -109,11 +114,17 @@ function simulate(actions: Action[]) {
     finished.set(cloid, event);
     feed(event);
   };
-  const fill = (cloid: string, size: number, isBuy: boolean) => {
+  // The exchange books a fill at once; the user's fill stream may deliver it later.
+  const bookFill = (cloid: string, size: number, isBuy: boolean) => {
     const record = { tid: tid++, cloid, isBuy, size, closedPnl: 0, fee: 0, time: tid };
     fills.push(record);
     position = round(position + (isBuy ? -size : size));
-    feed({ type: 'fill', ...record });
+    return () => {
+      feed({ type: 'fill', ...record });
+    };
+  };
+  const fill = (cloid: string, size: number, isBuy: boolean) => {
+    bookFill(cloid, size, isBuy)();
   };
   const restingOf = (name: string) => [...book.keys()].find((cloid) => legOf(cloid) === name);
 
@@ -182,7 +193,7 @@ function simulate(actions: Action[]) {
     }
   };
 
-  const fillResting = (name: 'entry' | 'tp', requested: number) => {
+  const fillResting = (name: 'entry' | 'tp', requested: number, late = false) => {
     const cloid = restingOf(name);
     const order = cloid ? book.get(cloid) : undefined;
     if (!cloid || !order || (name === 'tp' && position <= 0)) return;
@@ -190,8 +201,10 @@ function simulate(actions: Action[]) {
     const size = round(Math.min(order.size - order.filled, cap, requested));
     if (size <= 0) return;
     order.filled = round(order.filled + size);
-    fill(cloid, size, name === 'tp');
+    const deliver = bookFill(cloid, size, name === 'tp');
+    if (!late) deliver();
     if (order.filled >= order.size) finish(cloid, 'filled');
+    if (late) deliver();
   };
 
   for (const a of actions) {
@@ -205,17 +218,22 @@ function simulate(actions: Action[]) {
         fillResting('entry', a.lots / 10_000);
         break;
       case 'tp_fill':
-        fillResting('tp', a.lots / 10_000);
+        fillResting('tp', a.lots / 10_000, a.late);
         break;
       case 'sl_fire': {
         const cloid = restingOf('sl');
-        if (!cloid) break;
+        const stop = cloid ? book.get(cloid) : undefined;
+        if (!cloid || !stop) break;
+        // As seen on testnet: triggered with the take-profit pulled as reduce-only in one
+        // update, then filled; the fill comes before or after it.
         feed({ type: 'order', cloid, status: 'triggered', filledSz: 0 });
-        if (position > 0) fill(cloid, position, true);
-        finish(cloid, 'filled');
-        // HL pulls a reduce-only limit that no longer has a position to reduce.
         const tp = restingOf('tp');
         if (tp) finish(tp, 'canceled');
+        stop.filled = Math.max(position, 0);
+        const deliver = position > 0 ? bookFill(cloid, position, true) : () => undefined;
+        if (!a.late) deliver();
+        finish(cloid, 'filled');
+        if (a.late) deliver();
         break;
       }
       case 'close':
