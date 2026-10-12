@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia';
 import { computed, ref, shallowRef } from 'vue';
-import type { Cloid } from '../core/bracket/cloid';
+import { parseCloid, type Cloid } from '../core/bracket/cloid';
 import { budgetRemainingUsd, utcDayStart } from '../core/budget';
 import {
   changeRules,
@@ -109,8 +109,10 @@ export const useAccountStore = defineStore('account', () => {
     ]);
     limits.value = nextLimits;
     pushAccount();
+    // The e2e script's orders (its own prefix) are not the app's to close or cancel.
     appOrders.value = open.filter(
-      (o): o is AccountOrder & { cloid: Cloid } => o.coin === terminal.coin && o.cloid !== null,
+      (o): o is AccountOrder & { cloid: Cloid } =>
+        o.coin === terminal.coin && o.cloid !== null && parseCloid(o.cloid)?.prefix === '7466',
     );
     syncError.value = null;
   }

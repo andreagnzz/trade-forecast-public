@@ -1,6 +1,8 @@
 import { createPinia, setActivePinia } from 'pinia';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { makeCloid } from '../core/bracket/cloid';
 import type { DayStats } from '../core/rules';
+import { loadOpenOrders } from '../hl/account';
 import { loadDayStats } from '../services/accountData';
 import { useAccountStore } from './account';
 
@@ -25,6 +27,7 @@ vi.mock('../services/accountData', () => ({
 }));
 
 const MASTER = '0x0000000000000000000000000000000000000001';
+const BRACKET_ID = '000000000000000000000001';
 const flatDay: DayStats = { trips: [], dayPnlUsd: 0 };
 
 function deferred<T>() {
@@ -69,5 +72,20 @@ describe('account store', () => {
     await first;
 
     expect(account.stats).toMatchObject({ dayPnlUsd: -20, asOf: 2000 });
+  });
+
+  it('lists only the app orders on the coin, not the e2e script ones', async () => {
+    const account = await openAccount();
+    const app = makeCloid('7466', BRACKET_ID, 'entry', 0);
+    const e2e = makeCloid('7465', BRACKET_ID, 'entry', 0);
+    vi.mocked(loadDayStats).mockResolvedValue(flatDay);
+    vi.mocked(loadOpenOrders).mockResolvedValueOnce(
+      [app, e2e].map((cloid) => ({ coin: 'BTC', cloid, size: 0.01, reduceOnly: false })),
+    );
+
+    account.refresh();
+    await vi.runOnlyPendingTimersAsync();
+
+    expect(account.appOrders.map((o) => o.cloid)).toEqual([app]);
   });
 });
