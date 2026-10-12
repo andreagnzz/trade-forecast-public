@@ -50,11 +50,11 @@ export const useAccountStore = defineStore('account', () => {
   let recentFills: ReturnType<typeof incrementalFills> | null = null;
 
   // A lock ends at 00:00 UTC whether or not anything else happens.
-  const now = ref(Date.now());
+  const clockMs = ref(Date.now());
   setInterval(() => {
-    now.value = Date.now();
+    clockMs.value = Date.now();
   }, CLOCK_TICK_MS);
-  const rules = computed(() => resolveRules(rulesState.value, now.value));
+  const rules = computed(() => resolveRules(rulesState.value, clockMs.value));
 
   function persistRules(state: RulesState) {
     rulesState.value = state;
