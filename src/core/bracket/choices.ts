@@ -47,7 +47,8 @@ export function applyChoice(d: Bracket, event: UserEvent): BracketCommand[] {
       d.tp.status = 'canceling';
       return [{ type: 'cancel', cloid: legCloid(d, 'tp') }];
     case 'dismiss':
-      if (d.attention !== 'entry_unknown' || d.filledSz > 0) return [];
+      // The stop stays behind for a late entry, so it must be resting first.
+      if (d.attention !== 'entry_unknown' || d.filledSz > 0 || d.sl.status !== 'live') return [];
       d.attention = null;
       d.cancelling ??= 'dismissed';
       return [];

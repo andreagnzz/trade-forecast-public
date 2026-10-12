@@ -211,6 +211,16 @@ describe('entry without fill', () => {
     expect(state.attention).toBe('entry_unknown');
   });
 
+  it('refuses dismiss while the stop is not resting, so a late entry is never naked', () => {
+    const lost = run(
+      working(),
+      { type: 'unknown', cloid: c('entry') },
+      order(c('sl'), 'canceled'),
+    ).state;
+    const { state } = run(lost, { type: 'dismiss' });
+    expect(state.outcome).toBeNull();
+  });
+
   it('leaves the stop resting on dismiss, in case the unknown entry lands late', () => {
     const lost = run(working(), { type: 'unknown', cloid: c('entry') }).state;
     const { state, commands } = run(lost, { type: 'dismiss' });
