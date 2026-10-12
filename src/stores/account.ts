@@ -1,10 +1,11 @@
 import { defineStore } from 'pinia';
 import { computed, ref, shallowRef } from 'vue';
-import { parseCloid, type Cloid } from '../core/bracket/cloid';
+import { parseCloid, type Cloid, type CloidPrefix } from '../core/bracket/cloid';
 import { budgetRemainingUsd, utcDayStart } from '../core/budget';
 import {
   changeRules,
   initialRulesState,
+  lossLimitReached,
   resolveRules,
   updateLock,
   type DayStats,
@@ -29,6 +30,7 @@ import { useTerminalStore } from './terminal';
 
 type Profile = Awaited<ReturnType<typeof loadProfile>>;
 
+export const APP_PREFIX: CloidPrefix = '7466';
 const REFRESH_DELAY_MS = 300;
 const CLOCK_TICK_MS = 30_000;
 
@@ -85,7 +87,9 @@ export const useAccountStore = defineStore('account', () => {
     return limit ? budgetRemainingUsd(limit.usd, stats.value.dayPnlUsd) : undefined;
   });
   const softLimitReached = computed(
-    () => rules.value.rules.lossLimit?.hard === false && budgetLeftUsd.value === 0,
+    () =>
+      rules.value.rules.lossLimit?.hard === false &&
+      lossLimitReached(rules.value.rules, stats.value.dayPnlUsd),
   );
 
   // Live sizing reads the account limits. Only a hard limit caps the size at what is left of
@@ -110,10 +114,10 @@ export const useAccountStore = defineStore('account', () => {
     if (address !== master.value) return;
     limits.value = nextLimits;
     pushAccount();
-    // The e2e script's orders (its own prefix) are not the app's to close or cancel.
+    // The e2e script's orders are not the app's to close or cancel.
     appOrders.value = open.filter(
       (o): o is AccountOrder & { cloid: Cloid } =>
-        o.coin === terminal.coin && o.cloid !== null && parseCloid(o.cloid)?.prefix === '7466',
+        o.coin === terminal.coin && o.cloid !== null && parseCloid(o.cloid)?.prefix === APP_PREFIX,
     );
     syncError.value = null;
   }

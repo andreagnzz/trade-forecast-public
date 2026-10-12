@@ -15,7 +15,7 @@ import {
   type SendRefusal,
 } from '../services/bracketManager';
 import { createOrderService, type OrderService, type SendResult } from '../services/orderService';
-import { useAccountStore } from './account';
+import { APP_PREFIX, useAccountStore } from './account';
 import { MAX_SLIPPAGE, MIN_NOTIONAL_USD, useTerminalStore } from './terminal';
 
 const KEY_STORAGE = 'tf.agentKey';
@@ -216,7 +216,7 @@ export const useExecutionStore = defineStore('execution', () => {
     if (!manager || !live || !canSend.value || !sizing || !spec) return;
     const plan: BracketPlan = {
       id: randomBracketId(),
-      prefix: '7466',
+      prefix: APP_PREFIX,
       coin: terminal.coin,
       side: terminal.side,
       entry:
@@ -278,7 +278,7 @@ export const useExecutionStore = defineStore('execution', () => {
     if (!px) return;
     await runStray({
       type: 'place',
-      cloid: makeCloid('7466', randomBracketId(), 'close', 0),
+      cloid: makeCloid(APP_PREFIX, randomBracketId(), 'close', 0),
       order: { isBuy, px, size: position.size, reduceOnly: true, type: 'ioc' },
     });
   }

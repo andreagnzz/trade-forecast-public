@@ -170,8 +170,8 @@ interface AccountHandlers {
   onConnection: (connected: boolean) => void;
 }
 
-// The SDK socket reconnects and resubscribes; the caller reconciles from REST on reopen. The
-// returned close stops the feed when connecting fails after it started.
+// The SDK socket reconnects and resubscribes; the caller reconciles from REST on reopen. A failed
+// subscribe closes the socket here, so no handler outlives the error.
 export async function subscribeAccount(
   master: Address,
   coin: string,
