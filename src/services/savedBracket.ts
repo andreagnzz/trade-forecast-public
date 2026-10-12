@@ -6,14 +6,25 @@ export interface Saved {
   bracket: Bracket;
 }
 
-function isSaved(value: unknown): value is Saved {
-  if (typeof value !== 'object' || value === null) return false;
-  const bracket: unknown = Reflect.get(value, 'bracket');
+const isObject = (value: unknown): value is object => typeof value === 'object' && value !== null;
+
+function isBracket(value: unknown): value is Bracket {
+  if (!isObject(value)) return false;
+  const plan: unknown = Reflect.get(value, 'plan');
   return (
+    isObject(plan) &&
+    typeof Reflect.get(plan, 'id') === 'string' &&
+    typeof Reflect.get(plan, 'coin') === 'string' &&
+    ['entry', 'sl', 'tp', 'close'].every((leg) => isObject(Reflect.get(value, leg)))
+  );
+}
+
+function isSaved(value: unknown): value is Saved {
+  return (
+    isObject(value) &&
     Reflect.get(value, 'version') === 3 &&
     typeof Reflect.get(value, 'since') === 'number' &&
-    typeof bracket === 'object' &&
-    bracket !== null
+    isBracket(Reflect.get(value, 'bracket'))
   );
 }
 
