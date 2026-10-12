@@ -777,6 +777,31 @@ describe('reconstruction', () => {
     expect(reloaded.commands).toEqual([]);
     expect(reloaded.state.attention).toBe('entry_unknown');
   });
+  it('drops entry_unknown once a snapshot finds the entry resting, so dismiss no longer applies', () => {
+    const lost = run(
+      working(),
+      { type: 'uncertain', cloid: c('entry') },
+      { type: 'unknown', cloid: c('entry') },
+    ).state;
+    const found = run(lost, {
+      type: 'snapshot',
+      open: [
+        { cloid: c('sl'), size: 0 },
+        { cloid: c('entry'), size: 0.003 },
+      ],
+      fills: [],
+    }).state;
+    expect(found.attention).toBeNull();
+    expect(run(found, { type: 'dismiss' }).commands).toEqual([]);
+  });
+
+  it('winds down a working entry before its stop', () => {
+    const { commands } = run(
+      { ...resting(), cancelling: 'dismissed' },
+      { type: 'retry_due', leg: 'tp' },
+    );
+    expect(commands).toEqual([{ type: 'cancel', cloid: c('entry') }]);
+  });
 });
 
 describe('lifecycle', () => {

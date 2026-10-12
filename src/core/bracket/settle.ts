@@ -14,8 +14,6 @@ import {
 import type { LegName } from './cloid';
 import { replace } from './legs';
 
-const EXITS = ['sl', 'tp', 'close'] as const;
-
 function cancelLive(d: Bracket, legs: readonly LegName[]): BracketCommand[] {
   const commands: BracketCommand[] = [];
   for (const leg of legs) {
@@ -37,22 +35,13 @@ const exitDue = (d: Bracket) => d.sl.status === 'filling' || d.tp.status === 'fi
 const inFlight = (d: Bracket) =>
   LEGS.some((leg) => d[leg].status === 'sending' || d[leg].status === 'canceling');
 
-// Unfilled bracket: nothing to protect, every resting leg can go at once. It only ends once
-// any fill the entry announced has arrived, since that fill would reopen protection.
-function windDown(d: Bracket, reason: NonNullable<Bracket['cancelling']>): BracketCommand[] {
-  const commands = cancelLive(d, LEGS);
-  const settled = d.entry.status === 'idle' || entryFinished(d);
-  if (!inFlight(d) && settled) d.outcome = { kind: 'cancelled', reason };
-  return commands;
-}
-
-// Flat after fills: stop the entry first and wait for its final size. A fill that lands in
+// Unfilled or flat: stop the entry first and wait for its final size. A fill that lands in
 // between reopens the position, and the stop is still there to cover it.
-function flatten(d: Bracket): BracketCommand[] {
+function windDown(d: Bracket, outcome: NonNullable<Bracket['outcome']>): BracketCommand[] {
   if (d.entry.status === 'live') return cancelLive(d, ['entry']);
-  if (!entryFinished(d)) return [];
-  const commands = cancelLive(d, EXITS);
-  if (!inFlight(d)) d.outcome = { kind: 'closed' };
+  if (d.entry.status !== 'idle' && !entryFinished(d)) return [];
+  const commands = cancelLive(d, LEGS);
+  if (!inFlight(d)) d.outcome = outcome;
   return commands;
 }
 
@@ -105,7 +94,7 @@ function takeProfit(d: Bracket): BracketCommand[] {
 // Drives the exchange toward the state the bracket needs. Live events and reconstruction both
 // end here, so a reload resumes with the same rules as a running tab.
 export function settle(d: Bracket): BracketCommand[] {
-  if (d.cancelling) return windDown(d, d.cancelling);
-  if (isFlat(d)) return flatten(d);
+  if (d.cancelling) return windDown(d, { kind: 'cancelled', reason: d.cancelling });
+  if (isFlat(d)) return windDown(d, { kind: 'closed' });
   return [...protect(d), ...takeProfit(d)];
 }

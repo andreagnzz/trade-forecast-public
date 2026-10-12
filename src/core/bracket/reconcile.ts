@@ -28,6 +28,7 @@ export function reconcile(
       // A cancel sent by the previous page may never have landed: send it again.
       if (state.status === 'canceling') commands.push({ type: 'cancel', cloid: legCloid(d, leg) });
       else state.status = 'live';
+      if (leg === 'entry' && d.attention === 'entry_unknown') d.attention = null;
       if (leg === 'tp') Object.assign(d.tp, { size, prev: null });
     } else if (state.status === 'sending' || (leg === 'entry' && state.status === 'live')) {
       commands.push({ type: 'query', cloid: legCloid(d, leg) });
