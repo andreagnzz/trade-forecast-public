@@ -58,6 +58,28 @@ test('error: market data failure offers a retry', async ({ page }) => {
   await capture(page, 'error');
 });
 
+test('connect: a failure after the key check keeps the dialog open and stays in preview', async ({
+  page,
+}) => {
+  // The key check passes, then reading the account fails halfway through wiring.
+  await page.route(/hyperliquid-testnet\.xyz\/info/, (route) => {
+    const body = route.request().postData() ?? '';
+    if (body.includes('"type":"userRole"'))
+      return route.fulfill({ json: { role: 'agent', data: { user: MASTER } } });
+    if (body.includes('"type":"userFees"')) return route.abort();
+    return route.continue();
+  });
+  await openTerminal(page);
+  await page.getByTestId('send').click();
+  const dialog = page.getByRole('dialog', { name: 'Connect testnet' });
+  await dialog.getByLabel('Agent key').fill(`0x${'0'.repeat(63)}1`);
+  await dialog.getByRole('button', { name: 'Connect' }).click();
+  await expect(dialog.getByRole('alert')).toContainText('connect failed');
+  await expect(dialog).toBeVisible();
+  await expect(page.getByText('Mainnet preview')).toBeVisible();
+  await expect(page.getByTestId('send')).toHaveText('Connect testnet to execute');
+});
+
 test('error: a start that fails after a newer one has loaded is ignored', async ({ page }) => {
   let held = 0;
   await page.route(/hyperliquid\.xyz\/info/, async (route) => {

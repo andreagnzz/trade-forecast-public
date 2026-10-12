@@ -44,6 +44,7 @@ export function strayNotice(result: SendResult): string | null {
 // it. Only the master address and plain data reach the stores.
 let orders: OrderService | null = null;
 let manager: BracketManager | null = null;
+let closeAccountFeed: () => void = () => undefined;
 
 export const useExecutionStore = defineStore('execution', () => {
   const terminal = useTerminalStore();
@@ -134,7 +135,7 @@ export const useExecutionStore = defineStore('execution', () => {
     });
     const service = createManager(connected, orders);
     manager = service;
-    await subscribeAccount(connected.master, terminal.coin, {
+    closeAccountFeed = await subscribeAccount(connected.master, terminal.coin, {
       onOrder: service.onOrderUpdate,
       onFills: (fills) => {
         service.onFills(fills);
@@ -148,25 +149,40 @@ export const useExecutionStore = defineStore('execution', () => {
         if (open) void service.reconcile();
       },
     });
-    watchTab(service);
     await service.load();
+    watchTab(service);
     account.refresh();
   }
 
-  async function connect(key: string, remember: boolean) {
+  // A start that fails halfway must not leave a master, a bracket manager or the testnet badge
+  // behind: the terminal goes back to Preview.
+  function rollBack() {
+    closeAccountFeed();
+    orders = null;
+    manager = null;
+    account.master = null;
+    accountFeed.value = 'connecting';
+    terminal.useNetwork('mainnet');
+  }
+
+  // Returns true once the terminal is live on testnet.
+  async function connect(key: string, remember: boolean): Promise<boolean> {
     connecting.value = true;
     keyError.value = null;
     try {
       const connection = await connectAgent(key.trim());
       if (!connection.ok) {
         keyError.value = KEY_ERRORS[connection.error];
-        return;
+        return false;
       }
       if (remember) sessionStorage.setItem(KEY_STORAGE, key.trim());
       else sessionStorage.removeItem(KEY_STORAGE);
       await start(connection.client);
+      return true;
     } catch (error) {
+      rollBack();
       keyError.value = `connect failed: ${error instanceof Error ? error.message : String(error)}`;
+      return false;
     } finally {
       connecting.value = false;
     }

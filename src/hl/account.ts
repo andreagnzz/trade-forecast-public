@@ -170,12 +170,13 @@ interface AccountHandlers {
   onConnection: (connected: boolean) => void;
 }
 
-// The SDK socket reconnects and resubscribes; the caller reconciles from REST on reopen.
+// The SDK socket reconnects and resubscribes; the caller reconciles from REST on reopen. The
+// returned close stops the feed when connecting fails after it started.
 export async function subscribeAccount(
   master: Address,
   coin: string,
   handlers: AccountHandlers,
-): Promise<void> {
+): Promise<() => void> {
   const transport = new WebSocketTransport({ isTestnet: true });
   transport.socket.addEventListener('open', () => {
     handlers.onConnection(true);
@@ -203,4 +204,7 @@ export async function subscribeAccount(
       handlers.onPosition(toPosition(event.clearinghouseState, coin));
     }),
   ]);
+  return () => {
+    transport.close();
+  };
 }

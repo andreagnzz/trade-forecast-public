@@ -1,10 +1,8 @@
 <script setup lang="ts">
 import { useTemplateRef } from 'vue';
-import { useAccountStore } from '../stores/account';
 import { useExecutionStore } from '../stores/execution';
 
 const execution = useExecutionStore();
-const account = useAccountStore();
 const dialog = useTemplateRef<HTMLDialogElement>('dialog');
 const keyInput = useTemplateRef<HTMLInputElement>('keyInput');
 const rememberInput = useTemplateRef<HTMLInputElement>('rememberInput');
@@ -16,8 +14,7 @@ async function submit() {
   if (!input) return;
   const key = input.value;
   input.value = '';
-  await execution.connect(key, rememberInput.value?.checked ?? false);
-  if (account.master) dialog.value?.close();
+  if (await execution.connect(key, rememberInput.value?.checked ?? false)) dialog.value?.close();
 }
 
 defineExpose({ open: () => dialog.value?.showModal() });
