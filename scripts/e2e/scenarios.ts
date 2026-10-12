@@ -19,7 +19,7 @@ import {
   waitFor,
 } from './harness';
 
-const THIN_COINS = ['AVAX', 'SOL', 'ARB', 'SUI', 'DOGE', 'ETH'];
+export const THIN_COINS = ['AVAX', 'SOL', 'ARB', 'SUI', 'DOGE', 'ETH'];
 
 export interface Run {
   scenario: string;

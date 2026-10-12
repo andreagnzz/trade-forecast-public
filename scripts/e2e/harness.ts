@@ -93,6 +93,11 @@ function memoryStorage() {
   };
 }
 
+// A failed scenario leaves its session behind: stop feeding it so it reacts to nothing more.
+export function disposeSessions() {
+  managers.clear();
+}
+
 // Times are stamped when the manager first reports each state.
 export function openSession(storage = memoryStorage()) {
   const marks: { slLive?: number; filled?: number; tpLive?: number } = {};

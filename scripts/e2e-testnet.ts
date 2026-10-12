@@ -2,8 +2,8 @@ import { writeFile } from 'node:fs/promises';
 import { setTimeout as sleep } from 'node:timers/promises';
 import { messageOf } from '../src/hl/errors';
 import { calibrate } from './e2e/calibrate';
-import { COIN, flatten, median } from './e2e/harness';
-import { scenarios, type Run } from './e2e/scenarios';
+import { COIN, disposeSessions, flatten, median } from './e2e/harness';
+import { scenarios, THIN_COINS, type Run } from './e2e/scenarios';
 
 const DEFAULT_RUNS: [string, number][] = [
   ['marketBracket', 10],
@@ -26,19 +26,24 @@ const requested = args
     return [name, Number(count)];
   });
 const PLAN = requested.length > 0 ? requested : DEFAULT_RUNS;
-// A failed run must not take the rest down: a rate limit gets a minute to cool off, then one
-// more try; if cleanup still fails, the next scenario's busy-coin check says so.
+// A failed run must not take the rest down. Its session's retry timers run out within the first
+// wait; a rate limit gets a minute to cool off, then one more try. If cleanup still fails, the
+// next scenario's busy-coin check says so.
 async function cleanUp() {
-  for (const wait of [0, 60_000]) {
+  disposeSessions();
+  for (const wait of [10_000, 60_000]) {
     await sleep(wait);
     try {
-      await flatten(COIN);
+      for (const coin of [COIN, ...THIN_COINS]) await flatten(coin);
       return;
     } catch (error) {
       console.log(`  cleanup failed: ${messageOf(error)}`);
     }
   }
 }
+
+// Leftovers of an earlier interrupted run would make every send refuse a busy coin.
+for (const coin of [COIN, ...THIN_COINS]) await flatten(coin);
 
 const runs: Run[] = [];
 for (const [scenario, count] of PLAN) {
