@@ -79,5 +79,5 @@ Requires Node 22.12+ and pnpm 10.
 ## Status
 
 - Preview mode: live mainnet BTC candles, best bid/ask and mark price (read-only), a hypothetical equity, and draggable entry, stop and take-profit lines. The size, dollar risk, fees, gain and R:R update on every drag; the stop label shows the dollar risk and the distance from entry and mark, the take-profit label the net gain and the R multiple. Keyboard: `1` `2` `3` place a line at the cursor, `X` long/short, `M` market/limit, `R` focus risk, `Enter` send, `Esc` reset, `?` help.
-- Testnet execution: agent key connection, the bracket described above, optional daily rules (one bullet, hard loss limit) that refuse exposure-increasing orders until 00:00 UTC while cancels and reduce-only orders always go through.
+- Testnet execution: agent key connection, the bracket described above, optional daily rules (one bullet, hard loss limit) that refuse exposure-increasing orders until 00:00 UTC while cancels and reduce-only orders always go through; a lock that latches while a limit entry rests cancels that entry.
 - Terminal states: loading, market data error with retry, market or account feed disconnected, take-profit attention, unprotected position, daily lock. A first-run hint and the `?` shortcut list explain the controls.

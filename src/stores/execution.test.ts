@@ -1,6 +1,8 @@
 import { createPinia, setActivePinia } from 'pinia';
 import { describe, expect, it, vi } from 'vitest';
+import { nextTick } from 'vue';
 import { APP_PREFIX, makeCloid } from '../core/bracket/cloid';
+import { initialRulesState } from '../core/rules';
 import { subscribeAccount } from '../hl/account';
 import { connectAgent, type ExecutionClient } from '../hl/exchange';
 import { createBracketManager, type BracketManager } from '../services/bracketManager';
@@ -63,6 +65,37 @@ describe('strayOrders', () => {
   it('lists the stop an ended bracket left resting', () => {
     const ended = { ...bracket, outcome: { kind: 'cancelled', reason: 'dismissed' } } as const;
     expect(strayOrders([sl], ended)).toEqual([sl]);
+  });
+});
+
+describe('daily lock', () => {
+  it('cancels the resting entry when a lock latches mid-bracket', async () => {
+    vi.useFakeTimers();
+    setActivePinia(createPinia());
+    vi.stubGlobal('localStorage', { getItem: () => null, setItem: () => undefined });
+    vi.stubGlobal('sessionStorage', { removeItem: () => undefined });
+    vi.stubGlobal('document', { addEventListener: () => undefined });
+    vi.stubGlobal('window', { addEventListener: () => undefined });
+    const choose = vi.fn();
+    vi.mocked(createBracketManager).mockReturnValue({
+      load: () => Promise.resolve(),
+      reconcile: vi.fn(),
+      choose,
+    } as unknown as BracketManager);
+    vi.mocked(connectAgent).mockResolvedValue({
+      ok: true,
+      client: { master: MASTER } as unknown as ExecutionClient,
+    });
+    vi.mocked(subscribeAccount).mockResolvedValue(vi.fn());
+
+    expect(await useExecutionStore().connect('0xkey', false)).toBe(true);
+    const lock = { reason: 'loss_limit', until: Date.now() + 3_600_000 } as const;
+    useAccountStore().persistRules({ ...initialRulesState, lock });
+    await nextTick();
+
+    expect(choose).toHaveBeenCalledWith({ type: 'cancel_entry' });
+    vi.unstubAllGlobals();
+    vi.useRealTimers();
   });
 });
 

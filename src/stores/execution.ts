@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia';
-import { computed, ref, shallowRef } from 'vue';
+import { computed, ref, shallowRef, watch } from 'vue';
 import { exitIsBuy, isUnprotected, phase, type BracketPlan } from '../core/bracket/bracket';
 import { APP_PREFIX, makeCloid, parseCloid, type Cloid } from '../core/bracket/cloid';
 import type { Rules } from '../core/rules';
@@ -78,6 +78,13 @@ export const useExecutionStore = defineStore('execution', () => {
   // Exposure on the coin that no local bracket tracks: cleared storage or another browser.
   const stray = computed(
     () => !active.value && ((account.position?.sz ?? 0) > 0 || strays.value.length > 0),
+  );
+  // A resting entry would add exposure after the lock: stop working it. A no-op unless it rests.
+  watch(
+    () => account.rules.lock !== null,
+    (locked) => {
+      if (locked) manager?.choose({ type: 'cancel_entry' });
+    },
   );
   // The panel only mirrors these gates; OrderService and BracketManager enforce them again.
   const blocker = computed(() => {
