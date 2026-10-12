@@ -71,4 +71,4 @@ console.log(
   `median first fill to take-profit live: ${String(median(timed.map((r) => r.fillToTpMs ?? 0)))} ms`,
 );
 await writeFile('test-results/e2e-testnet.json', JSON.stringify(runs, null, 2));
-process.exit(0);
+process.exit(runs.every((run) => run.ok) ? 0 : 1);
