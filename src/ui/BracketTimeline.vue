@@ -9,8 +9,8 @@ import {
 } from '../core/bracket/bracket';
 import { useAccountStore } from '../stores/account';
 import { useExecutionStore } from '../stores/execution';
-import { useTerminalStore } from '../stores/terminal';
-import { rMultiple, signedUsd } from './format';
+import { MIN_NOTIONAL_USD, useTerminalStore } from '../stores/terminal';
+import { rMultiple, signedUsd, wholeUsd } from './format';
 
 const execution = useExecutionStore();
 const account = useAccountStore();
@@ -31,7 +31,7 @@ const ATTENTION: Record<Attention, string> = {
   entry_unknown: 'Entry status unknown: the exchange has no record of it. The stop stays.',
   sl_failed: 'Stop could not be placed.',
   tp_would_cross: 'Take-profit rejected: post-only would cross. Price is already past the target.',
-  tp_below_min: 'Take-profit rejected: below the $10 minimum.',
+  tp_below_min: `Take-profit rejected: below the ${wholeUsd(MIN_NOTIONAL_USD)} minimum.`,
   tp_failed: 'Take-profit could not be placed.',
   close_failed: 'Market close did not fill.',
 };
@@ -52,12 +52,14 @@ const legs = computed(() => {
   const tp =
     b.tp.px === null
       ? 'TP off'
-      : `TP ${LEG_MARK[b.tp.status]} ${b.tp.status === 'live' ? 'resting (post-only)' : ''}`;
+      : b.tp.status === 'live'
+        ? `TP ${LEG_MARK.live} resting (post-only)`
+        : `TP ${LEG_MARK[b.tp.status]}`;
   return [
     // A finished entry that filled reads as done-and-good, not as a dash.
     `Entry ${b.entry.status === 'done' && b.filledSz > 0 ? '✓' : LEG_MARK[b.entry.status]} ${String(b.filledSz)}/${String(b.plan.size)}`,
     `SL ${LEG_MARK[b.sl.status]}`,
-    tp.trim(),
+    tp,
   ].join(' · ');
 });
 
@@ -152,7 +154,7 @@ const tpChoices = computed(() => isTpAttention(execution.bracket?.attention ?? n
           :disabled="execution.strayBusy"
           @click="execution.cancelStray(order.cloid)"
         >
-          Cancel {{ order.reduceOnly ? 'reduce-only' : '' }} order {{ order.size }}
+          Cancel {{ order.reduceOnly ? 'reduce-only order' : 'order' }} {{ order.size }}
         </button>
       </span>
     </div>
