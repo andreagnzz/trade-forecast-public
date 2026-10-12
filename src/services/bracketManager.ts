@@ -122,9 +122,10 @@ export function createBracketManager(deps: BracketManagerDeps) {
       dispatch({ type: 'order', cloid, status: 'canceled', filledSz: 0 });
       return;
     }
-    // An unreachable exchange would otherwise turn cancel, status, cancel into a tight loop
-    // that deepens a rate limit.
-    if (answer.status === 'uncertain') {
+    // An unreachable or refusing exchange would otherwise turn cancel, status, cancel into a
+    // tight loop that deepens a rate limit. An order already gone is asked about at once.
+    const refused = answer.status === 'rejected' && answer.error.code !== 'MissingOrder';
+    if (answer.status === 'uncertain' || refused) {
       clock.setTimeout(() => {
         enqueue(query);
       }, QUERY_RETRY_MS);

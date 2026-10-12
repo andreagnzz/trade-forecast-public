@@ -34,6 +34,7 @@ interface Exchange {
   fills: AccountFill[];
   positionSz: number;
   statusFailures?: number;
+  cancelAnswer?: OrderResult;
 }
 
 function setup(
@@ -72,7 +73,7 @@ function setup(
     },
     cancel: (_coin: string, cloid: Cloid) => {
       exchange.calls.push(`cancel ${parseCloid(cloid)?.leg ?? '?'}`);
-      return Promise.resolve<OrderResult>({ status: 'canceled' });
+      return Promise.resolve<OrderResult>(exchange.cancelAnswer ?? { status: 'canceled' });
     },
     orderStatus: (_coin: string, cloid: Cloid) => {
       exchange.calls.push(`query ${parseCloid(cloid)?.leg ?? '?'}`);
@@ -188,6 +189,19 @@ describe('BracketManager', () => {
     await manager.settled();
     expect(exchange.calls).toEqual(['place sl 0', 'place entry 0.003', 'query entry']);
     expect(view().bracket?.attention).toBe('entry_unknown');
+  });
+
+  it('waits before asking again about a cancel the exchange refused', async () => {
+    const { manager, exchange, timers } = setup();
+    await manager.send(PLAN, MARK);
+    await manager.settled();
+    exchange.cancelAnswer = { status: 'rejected', error: { code: 'Unknown', message: 'busy' } };
+    manager.choose({ type: 'cancel_entry' });
+    await manager.settled();
+    expect(exchange.calls.at(-1)).toBe('cancel entry');
+    for (const run of timers.splice(0)) run();
+    await manager.settled();
+    expect(exchange.calls.at(-1)).toBe('query entry');
   });
 
   it('turns a crossing take-profit into a user choice with a readable reason', async () => {
