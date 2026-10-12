@@ -19,8 +19,15 @@ type ExitLeg = 'sl' | 'tp' | 'close';
 
 const FAILED = { sl: 'sl_failed', tp: 'tp_failed', close: 'close_failed' } as const;
 
-// A cloid holds the seq in one byte.
-export const seqLeft = (d: Bracket, leg: ExitLeg) => d[leg].maxSeq < 255;
+// HL does not deduplicate cloids, so a sent cloid is never sent again: the next order of a
+// leg takes a seq above any it used. A cloid holds the seq in one byte.
+export function nextSeq(d: Bracket, leg: ExitLeg) {
+  const state = d[leg];
+  if (state.maxSeq >= 255) return false;
+  state.maxSeq += 1;
+  state.seq = state.maxSeq;
+  return true;
+}
 
 // Before the entry is sent nothing is exposed, so a stop that cannot be placed ends the bracket.
 export function giveUp(d: Bracket, leg: ExitLeg) {
@@ -29,15 +36,12 @@ export function giveUp(d: Bracket, leg: ExitLeg) {
   else d.attention = FAILED[leg];
 }
 
-// HL does not deduplicate cloids, so a sent cloid is never sent again: the next order of a
-// leg always takes the next seq, and a leg that has used them all gives up.
+// A leg that has used every seq gives up.
 export function replace(d: Bracket, leg: ExitLeg, status: 'idle' | 'waiting' = 'idle') {
-  if (!seqLeft(d, leg)) {
+  if (!nextSeq(d, leg)) {
     giveUp(d, leg);
     return false;
   }
-  d[leg].maxSeq += 1;
-  d[leg].seq = d[leg].maxSeq;
   d[leg].status = status;
   if (leg === 'sl') d.sl.closedSz = 0;
   return true;

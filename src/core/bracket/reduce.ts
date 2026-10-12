@@ -19,6 +19,12 @@ const FILLS_DUE_MS = 3000;
 
 type OrderEvent = Extract<BracketEvent, { type: 'order' }>;
 
+// The exit stays announced until its fills arrive; the timer starts once, on the first event.
+function awaitFills(d: Bracket, exit: 'sl' | 'tp', wasFilling: boolean): BracketCommand[] {
+  d[exit].status = 'filling';
+  return wasFilling ? [] : [{ type: 'retry', leg: exit, delayMs: FILLS_DUE_MS }];
+}
+
 // Every attempt that did not leave a protective leg resting counts: the next one waits longer,
 // under the next seq, and the fifth failure asks the user.
 function failed(d: Bracket, leg: 'sl' | 'tp'): BracketCommand[] {
@@ -57,12 +63,8 @@ function onOrder(d: Bracket, event: OrderEvent): BracketCommand[] {
   if (leg === 'tp') d.tp.prev = null;
   if (event.status === 'open') return [];
   const ours = state.status === 'canceling';
-  const waitingFills = state.status === 'filling';
+  const wasFilling = state.status === 'filling';
   state.status = 'done';
-  const awaitFills = (exit: 'sl' | 'tp'): BracketCommand[] => {
-    d[exit].status = 'filling';
-    return waitingFills ? [] : [{ type: 'retry', leg: exit, delayMs: FILLS_DUE_MS }];
-  };
   switch (leg) {
     case 'entry':
       // The IOC response can beat its fill, so the order's own filled size decides.
@@ -78,11 +80,11 @@ function onOrder(d: Bracket, event: OrderEvent): BracketCommand[] {
       // HL announces a fired stop before its fills. With size 0 it closes the whole position;
       // its filled update then gives the exact size it closed.
       d.sl.size = event.status === 'filled' ? event.filledSz : d.sl.closedSz + openSize(d);
-      return d.sl.closedSz < d.sl.size ? awaitFills('sl') : [];
+      return d.sl.closedSz < d.sl.size ? awaitFills(d, 'sl', wasFilling) : [];
     case 'tp':
       if (event.status === 'canceled') return ours ? [] : failed(d, 'tp');
       // Filled on the exchange: what we still see resting is the part whose fills are on the way.
-      return event.status === 'filled' && d.tp.size > 0 ? awaitFills('tp') : [];
+      return event.status === 'filled' && d.tp.size > 0 ? awaitFills(d, 'tp', wasFilling) : [];
     case 'close':
       if (event.status === 'canceled') d.attention = 'close_failed';
       return [];
@@ -103,11 +105,6 @@ function onRejected(d: Bracket, cloid: string, reason: RejectReason): BracketCom
     }
     return [];
   }
-  if (leg === 'close') {
-    d.close.status = 'done';
-    d.attention = 'close_failed';
-    return [];
-  }
   switch (leg) {
     case 'entry':
       d.entry.status = 'done';
@@ -121,6 +118,10 @@ function onRejected(d: Bracket, cloid: string, reason: RejectReason): BracketCom
       if (reason === 'other') return failed(d, 'tp');
       replace(d, 'tp');
       d.attention = TP_ATTENTION[reason];
+      return [];
+    case 'close':
+      d.close.status = 'done';
+      d.attention = 'close_failed';
       return [];
   }
 }

@@ -12,7 +12,7 @@ import {
   type BracketCommand,
 } from './bracket';
 import type { LegName } from './cloid';
-import { replace, seqLeft } from './legs';
+import { nextSeq, replace } from './legs';
 
 function cancelLive(d: Bracket, legs: readonly LegName[]): BracketCommand[] {
   const commands: BracketCommand[] = [];
@@ -40,8 +40,8 @@ const inFlight = (d: Bracket) =>
 function windDown(d: Bracket, outcome: NonNullable<Bracket['outcome']>): BracketCommand[] {
   if (d.entry.status === 'live') return cancelLive(d, ['entry']);
   // An entry the exchange has no record of may still land: only the trader's dismiss ends it.
-  const unknown = d.attention === 'entry_unknown';
-  if (unknown || (d.entry.status !== 'idle' && !entryFinished(d))) return [];
+  if (d.attention === 'entry_unknown') return [];
+  if (d.entry.status !== 'idle' && !entryFinished(d)) return [];
   const commands = cancelLive(d, LEGS);
   if (!inFlight(d)) d.outcome = outcome;
   return commands;
@@ -82,20 +82,14 @@ function takeProfit(d: Bracket): BracketCommand[] {
   }
   const resize = tp.size !== size || tp.sentPx !== tp.px;
   if (tp.status !== 'live' || tp.prev || !resize) return [];
+  const cloid = legCloid(d, 'tp');
+  const prev = { seq: tp.seq, size: tp.size, px: tp.sentPx };
   // Out of seqs: the take-profit keeps resting as it is, and the user picks what comes next.
-  if (!seqLeft(d, 'tp')) {
+  if (!nextSeq(d, 'tp')) {
     d.attention = 'tp_failed';
     return [];
   }
-  const cloid = legCloid(d, 'tp');
-  Object.assign(tp, {
-    prev: { seq: tp.seq, size: tp.size, px: tp.sentPx },
-    seq: tp.maxSeq + 1,
-    maxSeq: tp.maxSeq + 1,
-    status: 'sending',
-    size,
-    sentPx: tp.px,
-  });
+  Object.assign(tp, { prev, status: 'sending', size, sentPx: tp.px });
   return [{ type: 'modify', cloid, next: legCloid(d, 'tp'), order }];
 }
 

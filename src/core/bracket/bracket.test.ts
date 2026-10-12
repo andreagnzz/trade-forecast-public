@@ -31,6 +31,8 @@ const PLAN: BracketPlan = {
   riskUsd: 3.5,
 };
 
+const IOC: BracketPlan = { ...PLAN, entry: { type: 'ioc', px: 80_100 } };
+
 const c = (leg: LegName, seq = 0) => makeCloid('7466', ID, leg, seq);
 
 let tid = 1;
@@ -289,9 +291,8 @@ describe('entry without fill', () => {
   });
 
   it('protects an entry that fills after its stop fired while flat, with no stop event after', () => {
-    const plan = { ...PLAN, entry: { type: 'ioc' as const, px: 80_100 } };
     const { state, commands } = run(
-      working(plan),
+      working(IOC),
       order(c('sl'), 'triggered'),
       order(c('entry'), 'filled', 0.003),
       buy(0.003),
@@ -301,9 +302,8 @@ describe('entry without fill', () => {
   });
 
   it('never ends a bracket whose entry fate is unknown', () => {
-    const plan = { ...PLAN, entry: { type: 'ioc' as const, px: 80_100 } };
     const { state } = run(
-      working(plan),
+      working(IOC),
       order(c('sl'), 'triggered'),
       { type: 'uncertain', cloid: c('entry') },
       { type: 'unknown', cloid: c('entry') },
@@ -432,12 +432,10 @@ describe('take-profit rejected', () => {
   });
 
   it('stops resizing and asks the user once the take-profit has used every seq', () => {
-    let state = run(working(), buy(0.0002), order(c('tp'), 'open')).state;
-    for (let lot = 0; lot < 280; lot++) {
-      state = run(state, buy(0.00001)).state;
-      if (state.tp.status === 'sending')
-        state = run(state, order(c('tp', state.tp.seq), 'open')).state;
-    }
+    const live = run(working(), buy(0.001), order(c('tp'), 'open')).state;
+    const exhausted = { ...live, tp: { ...live.tp, maxSeq: 255 } };
+    const { state, commands } = run(exhausted, buy(0.001));
+    expect(commands).toEqual([]);
     expect(state.attention).toBe('tp_failed');
     expect(state.tp.status).toBe('live');
   });
@@ -646,11 +644,9 @@ describe('close and OCO cleanup', () => {
   });
 
   it('refuses another market close once the close has used every seq, instead of throwing', () => {
-    let state = filled();
-    for (let seq = 0; seq <= 255; seq++) {
-      state = run(state, { type: 'close', px: 81_000 }, order(c('close', seq), 'canceled')).state;
-    }
-    const { commands } = run(state, { type: 'close', px: 81_000 });
+    const open = filled();
+    const exhausted = { ...open, close: { ...open.close, status: 'done' as const, maxSeq: 255 } };
+    const { state, commands } = run(exhausted, { type: 'close', px: 81_000 });
     expect(commands).toEqual([]);
     expect(state.attention).toBe('close_failed');
   });
