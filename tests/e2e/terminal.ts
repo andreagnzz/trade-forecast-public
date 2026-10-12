@@ -40,3 +40,17 @@ export async function patchStore(page: Page, id: string, patch: Record<string, u
     { id, patch },
   );
 }
+
+// Runs a store action, such as a second start racing the first.
+export async function callStore(page: Page, id: string, action: string) {
+  await page.evaluate(
+    ({ id, action }) => {
+      const root = document.querySelector<HTMLElement & VueRoot>('#app');
+      const store = root?.__vue_app__?.config.globalProperties.$pinia._s.get(id);
+      const run: unknown = store && Reflect.get(store, action);
+      if (typeof run !== 'function') throw new Error(`action ${id}.${action} not found`);
+      void Reflect.apply(run, store, []);
+    },
+    { id, action },
+  );
+}

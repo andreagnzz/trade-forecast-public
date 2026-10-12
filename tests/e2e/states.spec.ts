@@ -1,7 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import { openBracket, type Bracket } from '../../src/core/bracket/bracket';
 import { nextUtcDayStart } from '../../src/core/budget';
-import { numberIn, openTerminal, patchStore } from './terminal';
+import { callStore, numberIn, openTerminal, patchStore } from './terminal';
 
 const MASTER = '0x0000000000000000000000000000000000000001';
 
@@ -56,6 +56,24 @@ test('error: market data failure offers a retry', async ({ page }) => {
   await expect(page.getByRole('alert')).toContainText('Market data unavailable');
   await expect(page.getByRole('button', { name: 'Retry' })).toBeVisible();
   await capture(page, 'error');
+});
+
+test('error: a start that fails after a newer one has loaded is ignored', async ({ page }) => {
+  let held = 0;
+  await page.route(/hyperliquid\.xyz\/info/, async (route) => {
+    // The first start's three reads fail late; the second start's go through.
+    if (held >= 3) return route.continue();
+    held += 1;
+    await new Promise((settle) => setTimeout(settle, 2000));
+    return route.abort();
+  });
+  await page.goto('/');
+  await expect.poll(() => held).toBe(3);
+  await callStore(page, 'terminal', 'start');
+  await expect(page.getByTestId('size')).toBeVisible({ timeout: 15_000 });
+  await page.waitForTimeout(2500);
+  await expect(page.getByText('Market data unavailable')).toBeHidden();
+  await expect(page.getByTestId('size')).toBeVisible();
 });
 
 test('disconnected: a closed socket shows the reconnect banner', async ({ page }) => {

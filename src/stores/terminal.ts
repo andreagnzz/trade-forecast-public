@@ -164,6 +164,7 @@ export const useTerminalStore = defineStore('terminal', () => {
     const live = () => current === generation;
     closeFeed();
     status.value = 'loading';
+    connection.value = 'connecting';
     // Nothing from the previous network may size anything while the new one loads.
     instrument.value = undefined;
     quote.value = undefined;
@@ -182,7 +183,7 @@ export const useTerminalStore = defineStore('terminal', () => {
       reset();
       status.value = 'ready';
     } catch {
-      status.value = 'error';
+      if (live()) status.value = 'error';
       return;
     }
     // The REST seed is already on screen: a failed subscription only means no live updates.
@@ -204,7 +205,7 @@ export const useTerminalStore = defineStore('terminal', () => {
       if (live()) closeFeed = close;
       else close();
     } catch {
-      connection.value = 'closed';
+      if (live()) connection.value = 'closed';
     }
   }
 
