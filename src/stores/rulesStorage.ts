@@ -6,6 +6,9 @@ const key = (master: string) => `tf.rules.${master}`;
 
 const isObject = (value: unknown): value is object => typeof value === 'object' && value !== null;
 const field = (value: object, name: string): unknown => Reflect.get(value, name);
+// JSON has no NaN or Infinity, so a positive number is all a stored limit needs to be usable.
+const isLimitUsd = (value: unknown) => typeof value === 'number' && value > 0;
+const isLockReason = (value: unknown) => value === 'one_bullet' || value === 'loss_limit';
 
 function isRules(value: unknown): boolean {
   if (!isObject(value) || typeof field(value, 'oneBullet') !== 'boolean') return false;
@@ -13,7 +16,7 @@ function isRules(value: unknown): boolean {
   return (
     limit === null ||
     (isObject(limit) &&
-      typeof field(limit, 'usd') === 'number' &&
+      isLimitUsd(field(limit, 'usd')) &&
       typeof field(limit, 'hard') === 'boolean')
   );
 }
@@ -29,7 +32,7 @@ function isRulesState(value: unknown): value is RulesState {
         typeof field(pending, 'from') === 'number')) &&
     (lock === null ||
       (isObject(lock) &&
-        typeof field(lock, 'reason') === 'string' &&
+        isLockReason(field(lock, 'reason')) &&
         typeof field(lock, 'until') === 'number'))
   );
 }
