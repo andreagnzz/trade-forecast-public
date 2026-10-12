@@ -56,6 +56,11 @@ const isTyping = (target: EventTarget | null) =>
   target instanceof HTMLElement &&
   (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName));
 
+function sendOrConnect() {
+  if (account.master) void execution.send();
+  else keyDialog.value?.open();
+}
+
 function onKeydown(event: KeyboardEvent) {
   if (isTyping(event.target) || event.metaKey || event.ctrlKey || event.altKey) return;
   if (help.value?.open && event.key !== '?') return;
@@ -82,9 +87,7 @@ function onKeydown(event: KeyboardEvent) {
     case 'enter':
       // A click on the chart or panel leaves focus on the body: neither is focusable. A focused
       // link, button or summary keeps its own Enter action and never sends.
-      if (event.target !== document.body) break;
-      if (account.master) void execution.send();
-      else keyDialog.value?.open();
+      if (event.target === document.body) sendOrConnect();
       break;
     case '?':
       if (help.value?.open) help.value.close();
@@ -143,7 +146,7 @@ onBeforeUnmount(() => {
           <span>Market data unavailable. <button @click="store.start()">Retry</button></span>
         </p>
       </div>
-      <ForecastPanel @connect="keyDialog?.open()" />
+      <ForecastPanel @send="sendOrConnect" />
     </main>
 
     <footer class="bar foot muted">

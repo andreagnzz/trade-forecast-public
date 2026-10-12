@@ -11,16 +11,11 @@ import { loss, pct, price, rMultiple, signedUsd, sizingErrorText, usd, wholeUsd 
 const store = useTerminalStore();
 const execution = useExecutionStore();
 const account = useAccountStore();
-const emit = defineEmits<{ connect: [] }>();
+const emit = defineEmits<{ send: [] }>();
 
 const sendLabel = computed(() =>
   account.master ? (execution.blocker ?? 'Send bracket') : 'Connect testnet to execute',
 );
-
-function onSend() {
-  if (!account.master) emit('connect');
-  else void execution.send();
-}
 
 const MIN_NOTIONAL_TEXT = `${wholeUsd(MIN_NOTIONAL_USD)} minimum`;
 const STOP_BUFFER_TEXT = `${String(STOP_SLIPPAGE_BUFFER * 100)}%`;
@@ -192,7 +187,7 @@ const equityText = numberField(
       :class="{ ready: execution.canSend }"
       :disabled="!!account.master && !execution.canSend"
       data-testid="send"
-      @click="onSend"
+      @click="emit('send')"
     >
       {{ sendLabel }}
     </button>
