@@ -7,9 +7,9 @@ import {
   type Attention,
   type Phase,
 } from '../core/bracket/bracket';
+import { MIN_NOTIONAL_USD } from '../hl/format';
 import { useAccountStore } from '../stores/account';
 import { useExecutionStore } from '../stores/execution';
-import { MIN_NOTIONAL_USD } from '../hl/format';
 import { useTerminalStore } from '../stores/terminal';
 import { rText, signedUsd, wholeUsd } from './format';
 

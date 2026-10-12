@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 import type { Sizing } from '../core/sizing';
+import { MIN_NOTIONAL_USD } from '../hl/format';
 import { useAccountStore } from '../stores/account';
 import { useExecutionStore } from '../stores/execution';
-import { MIN_NOTIONAL_USD } from '../hl/format';
 import { STOP_SLIPPAGE_BUFFER, useTerminalStore } from '../stores/terminal';
 import BracketTimeline from './BracketTimeline.vue';
 import RulesDrawer from './RulesDrawer.vue';
@@ -29,24 +29,24 @@ const BINDING_TEXT: Record<Sizing['binding'], string> = {
   min_notional: MIN_NOTIONAL_TEXT,
 };
 
-const error = computed(() => {
+const sizingError = computed(() => {
   const sizingResult = store.sizing;
   return sizingResult && !sizingResult.ok
     ? sizingErrorText(sizingResult.error, store.side)
     : undefined;
 });
 
-const parse = (text: string) => (text.trim() === '' ? NaN : Number(text));
+const parseNumberField = (text: string) => (text.trim() === '' ? NaN : Number(text));
 
 // The field keeps what was typed ("", "0.") while the store holds the parsed number;
 // binding the input to the number would rewrite the text on every keystroke.
 function numberField(read: () => number, write: (value: number) => void) {
   const text = ref(String(read()));
   watch(text, (next) => {
-    write(parse(next));
+    write(parseNumberField(next));
   });
   watch(read, (value) => {
-    if (!Object.is(parse(text.value), value)) text.value = String(value);
+    if (!Object.is(parseNumberField(text.value), value)) text.value = String(value);
   });
   return text;
 }
@@ -131,7 +131,7 @@ const equityText = numberField(
       </span>
     </div>
 
-    <p v-if="error" class="notice error" role="alert">{{ error }}</p>
+    <p v-if="sizingError" class="notice error" role="alert">{{ sizingError }}</p>
 
     <dl v-if="store.okSizing" class="figures num">
       <dt>Size</dt>
