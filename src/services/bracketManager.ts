@@ -213,8 +213,11 @@ export function createBracketManager(deps: BracketManagerDeps) {
   }
 
   async function load() {
-    saved = readSaved(storage.getItem(storageKey));
+    const raw = storage.getItem(storageKey);
+    saved = readSaved(raw);
     if (!saved) storage.removeItem(storageKey);
+    // Its orders may still rest on the exchange, untracked.
+    if (raw !== null && !saved) lastError = 'saved bracket unreadable, dropped: check open orders';
     notify();
     await reconcile();
   }

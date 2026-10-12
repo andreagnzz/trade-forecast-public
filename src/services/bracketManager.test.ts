@@ -250,12 +250,15 @@ describe('BracketManager', () => {
     expect(await manager.send({ ...PLAN, id: 'ffffffffffffffffffffffff' }, MARK)).toBeNull();
   });
 
-  it('ignores an unreadable saved bracket instead of failing every send', async () => {
-    const storage = new Map([['bracket', '{not json']]);
-    const { manager } = setup({ storage });
-    await manager.load();
-    expect(storage.has('bracket')).toBe(false);
-    expect(await manager.send(PLAN, MARK)).toBeNull();
+  it('drops an unreadable or older saved bracket, says so, and still sends', async () => {
+    for (const raw of ['{not json', JSON.stringify({ version: 1, since: 0, bracket: {} })]) {
+      const storage = new Map([['bracket', raw]]);
+      const { manager, view } = setup({ storage });
+      await manager.load();
+      expect(storage.has('bracket')).toBe(false);
+      expect(view().lastError).toBe('saved bracket unreadable, dropped: check open orders');
+      expect(await manager.send(PLAN, MARK)).toBeNull();
+    }
   });
 
   it('keeps the queue running after one command throws, says so, and checks the order', async () => {
