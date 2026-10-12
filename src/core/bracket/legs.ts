@@ -23,6 +23,13 @@ export function replace(d: Bracket, leg: LegName, status: 'idle' | 'done' = 'idl
   if (leg === 'sl') d.sl.closedSz = 0;
 }
 
+// Before the entry is sent nothing is exposed, so a stop that cannot be placed ends the bracket.
+export function giveUp(d: Bracket, leg: 'sl' | 'tp') {
+  d[leg].status = 'done';
+  if (leg === 'sl' && d.entry.status === 'idle') d.cancelling ??= 'sl_rejected';
+  else d.attention = leg === 'sl' ? 'sl_failed' : 'tp_failed';
+}
+
 // A modify that did not land leaves the previous take-profit resting: track it again.
 export function revertTp(d: Bracket) {
   const { prev } = d.tp;

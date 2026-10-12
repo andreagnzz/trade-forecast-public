@@ -94,6 +94,19 @@ describe('send', () => {
     expect(state.outcome).toEqual({ kind: 'cancelled', reason: 'sl_rejected' });
   });
 
+  it('cancels the bracket when the stop never reaches the book before the entry left', () => {
+    let state = openBracket(PLAN).state;
+    for (let seq = 0; seq < 5; seq++) {
+      state = run(
+        state,
+        { type: 'unknown', cloid: c('sl', seq) },
+        { type: 'retry_due', leg: 'sl' },
+      ).state;
+    }
+    expect(state.attention).toBeNull();
+    expect(state.outcome).toEqual({ kind: 'cancelled', reason: 'sl_rejected' });
+  });
+
   it('mirrors every leg for a short', () => {
     const plan = { ...PLAN, side: 'short' as const, stopPx: 81_000, tpPx: 78_000 };
     const open = openBracket(plan);

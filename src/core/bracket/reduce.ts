@@ -8,7 +8,7 @@ import {
   type Step,
 } from './bracket';
 import { applyChoice } from './choices';
-import { applyFill, currentLeg, replace, revertTp } from './legs';
+import { applyFill, currentLeg, giveUp, replace, revertTp } from './legs';
 import { reconcile } from './reconcile';
 import { settle } from './settle';
 
@@ -20,8 +20,7 @@ function failed(d: Bracket, leg: 'sl' | 'tp'): BracketCommand[] {
   const state = d[leg];
   state.retries += 1;
   if (state.retries >= MAX_ATTEMPTS) {
-    state.status = 'done';
-    d.attention = leg === 'sl' ? 'sl_failed' : 'tp_failed';
+    giveUp(d, leg);
     return [];
   }
   state.status = 'waiting';
