@@ -185,25 +185,30 @@ export async function subscribeAccount(
     handlers.onConnection(false);
   });
   const subscriptions = new SubscriptionClient({ transport });
-  await Promise.all([
-    subscriptions.orderUpdates({ user: master }, (updates) => {
-      for (const u of updates) {
-        handlers.onOrder({
-          cloid: u.order.cloid ?? null,
-          coin: u.order.coin,
-          status: u.status,
-          origSz: u.order.origSz,
-          sz: u.order.sz,
-        });
-      }
-    }),
-    subscriptions.userFills({ user: master }, (event) => {
-      if (!event.isSnapshot) handlers.onFills(event.fills.map(toFill));
-    }),
-    subscriptions.clearinghouseState({ user: master }, (event) => {
-      handlers.onPosition(toPosition(event.clearinghouseState, coin));
-    }),
-  ]);
+  try {
+    await Promise.all([
+      subscriptions.orderUpdates({ user: master }, (updates) => {
+        for (const u of updates) {
+          handlers.onOrder({
+            cloid: u.order.cloid ?? null,
+            coin: u.order.coin,
+            status: u.status,
+            origSz: u.order.origSz,
+            sz: u.order.sz,
+          });
+        }
+      }),
+      subscriptions.userFills({ user: master }, (event) => {
+        if (!event.isSnapshot) handlers.onFills(event.fills.map(toFill));
+      }),
+      subscriptions.clearinghouseState({ user: master }, (event) => {
+        handlers.onPosition(toPosition(event.clearinghouseState, coin));
+      }),
+    ]);
+  } catch (error) {
+    transport.close();
+    throw error;
+  }
   return () => {
     transport.close();
   };

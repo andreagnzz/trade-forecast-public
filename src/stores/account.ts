@@ -72,8 +72,8 @@ export const useAccountStore = defineStore('account', () => {
       },
       now,
     );
-    // Refreshes overlap: one started earlier may answer later with older numbers.
-    if (now < stats.value.asOf) return stats.value;
+    // Refreshes overlap: one started earlier, or for an account since closed, may answer later.
+    if (address !== master.value || now < stats.value.asOf) return stats.value;
     stats.value = { ...day, asOf: now };
     // The lock latches on every refresh, not only before orders.
     persistRules(updateLock(rulesState.value, stats.value, now));
@@ -107,6 +107,7 @@ export const useAccountStore = defineStore('account', () => {
       loadLimits(address, terminal.coin, profile),
       loadOpenOrders(address),
     ]);
+    if (address !== master.value) return;
     limits.value = nextLimits;
     pushAccount();
     // The e2e script's orders (its own prefix) are not the app's to close or cancel.
@@ -154,6 +155,14 @@ export const useAccountStore = defineStore('account', () => {
     profile = await loadProfile(address);
   }
 
+  function close() {
+    master.value = null;
+    position.value = null;
+    appOrders.value = [];
+    limits.value = null;
+    terminal.account = null;
+  }
+
   // Returns false when the patch is invalid.
   function setRules(patch: Partial<Rules>): boolean {
     const now = Date.now();
@@ -180,6 +189,7 @@ export const useAccountStore = defineStore('account', () => {
     refreshStats,
     refresh,
     open,
+    close,
     setRules,
   };
 });

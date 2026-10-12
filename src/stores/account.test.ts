@@ -5,6 +5,7 @@ import type { DayStats } from '../core/rules';
 import { loadOpenOrders } from '../hl/account';
 import { loadDayStats } from '../services/accountData';
 import { useAccountStore } from './account';
+import { useTerminalStore } from './terminal';
 
 vi.mock('../hl/account', () => ({
   loadFills: vi.fn(),
@@ -87,5 +88,34 @@ describe('account store', () => {
     await vi.runOnlyPendingTimersAsync();
 
     expect(account.appOrders.map((o) => o.cloid)).toEqual([app]);
+  });
+
+  it('drops a refresh that lands after the account was closed', async () => {
+    const account = await openAccount();
+    const day = deferred<DayStats>();
+    vi.mocked(loadDayStats).mockReturnValueOnce(day.promise);
+
+    account.refresh();
+    await vi.advanceTimersByTimeAsync(300);
+    account.close();
+    day.resolve(flatDay);
+    await vi.runOnlyPendingTimersAsync();
+
+    expect(useTerminalStore().account).toBeNull();
+    expect(account.stats.asOf).toBe(0);
+  });
+
+  it("never writes one master's day stats into the next one", async () => {
+    const account = await openAccount();
+    const day = deferred<DayStats>();
+    vi.mocked(loadDayStats).mockReturnValueOnce(day.promise);
+
+    vi.setSystemTime(1000);
+    const late = account.refreshStats();
+    await account.open('0x0000000000000000000000000000000000000002');
+    day.resolve({ trips: [], dayPnlUsd: -500 });
+    await late;
+
+    expect(account.stats).toMatchObject({ dayPnlUsd: 0, asOf: 0 });
   });
 });

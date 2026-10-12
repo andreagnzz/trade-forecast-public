@@ -45,6 +45,9 @@ export function strayNotice(result: SendResult): string | null {
 let orders: OrderService | null = null;
 let manager: BracketManager | null = null;
 let closeAccountFeed: () => void = () => undefined;
+// Each start owns the account feed until it is rolled back: a dead session's socket events,
+// timers and bracket updates are dropped, so its manager can never act again.
+let session = 0;
 
 export const useExecutionStore = defineStore('execution', () => {
   const terminal = useTerminalStore();
@@ -86,7 +89,7 @@ export const useExecutionStore = defineStore('execution', () => {
       blocker.value === null,
   );
 
-  function createManager(connected: ExecutionClient, gate: OrderService) {
+  function createManager(connected: ExecutionClient, gate: OrderService, live: () => boolean) {
     return createBracketManager({
       orders: gate,
       client: connected,
@@ -99,10 +102,13 @@ export const useExecutionStore = defineStore('execution', () => {
       storageKey: `tf.bracket.${connected.master}`,
       clock: {
         setTimeout: (run, ms) => {
-          window.setTimeout(run, ms);
+          window.setTimeout(() => {
+            if (live()) run();
+          }, ms);
         },
       },
       onChange: (next) => {
+        if (!live()) return;
         const ended = !!next.bracket?.outcome && !view.value.bracket?.outcome;
         view.value = next;
         if (ended) account.refresh();
@@ -125,6 +131,8 @@ export const useExecutionStore = defineStore('execution', () => {
   }
 
   async function start(connected: ExecutionClient) {
+    const current = ++session;
+    const live = () => current === session;
     terminal.useNetwork('testnet');
     await account.open(connected.master);
     orders = createOrderService({
@@ -133,18 +141,22 @@ export const useExecutionStore = defineStore('execution', () => {
       stats: account.refreshStats,
       now: Date.now,
     });
-    const service = createManager(connected, orders);
+    const service = createManager(connected, orders, live);
     manager = service;
     closeAccountFeed = await subscribeAccount(connected.master, terminal.coin, {
-      onOrder: service.onOrderUpdate,
+      onOrder: (update) => {
+        if (live()) service.onOrderUpdate(update);
+      },
       onFills: (fills) => {
+        if (!live()) return;
         service.onFills(fills);
         account.refresh();
       },
       onPosition: (next) => {
-        account.position = next;
+        if (live()) account.position = next;
       },
       onConnection: (open) => {
+        if (!live()) return;
         accountFeed.value = open ? 'open' : 'closed';
         if (open) void service.reconcile();
       },
@@ -157,10 +169,12 @@ export const useExecutionStore = defineStore('execution', () => {
   // A start that fails halfway must not leave a master, a bracket manager or the testnet badge
   // behind: the terminal goes back to Preview.
   function rollBack() {
+    session += 1;
     closeAccountFeed();
     orders = null;
     manager = null;
-    account.master = null;
+    account.close();
+    view.value = { bracket: null, lastError: null };
     accountFeed.value = 'connecting';
     terminal.useNetwork('mainnet');
   }
