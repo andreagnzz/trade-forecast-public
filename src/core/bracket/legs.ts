@@ -20,6 +20,7 @@ export function currentLeg(d: Bracket, cloid: string): LegName | null {
 export function replace(d: Bracket, leg: LegName, status: 'idle' | 'done' = 'idle') {
   d[leg].seq += 1;
   d[leg].status = status;
+  if (leg === 'sl') d.sl.closedSz = 0;
 }
 
 // A modify that did not land leaves the previous take-profit resting: track it again.
@@ -41,8 +42,13 @@ export function applyFill(d: Bracket, fill: BracketFill) {
   d.pnlUsd += fill.closedPnl - fill.fee;
   if (fill.isBuy === exitIsBuy(d)) {
     d.exitedSz = roundSize(d, d.exitedSz + fill.size);
-    // HL shrinks a partly filled take-profit on its own: track what still rests.
     const parsed = fill.cloid === null ? null : ownLeg(d, fill.cloid);
+    if (parsed?.leg === 'sl' && parsed.seq === d.sl.seq) {
+      d.sl.closedSz = roundSize(d, d.sl.closedSz + fill.size);
+      if (d.sl.status === 'filling' && d.sl.closedSz >= d.sl.size) d.sl.status = 'done';
+      return;
+    }
+    // HL shrinks a partly filled take-profit on its own: track what still rests.
     if (parsed?.leg !== 'tp') return;
     // The order a modify is replacing can still fill until the modify lands.
     const { prev } = d.tp;

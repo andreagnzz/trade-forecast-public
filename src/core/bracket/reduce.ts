@@ -1,5 +1,6 @@
 import {
   legCloid,
+  openSize,
   type Bracket,
   type BracketCommand,
   type BracketEvent,
@@ -63,14 +64,21 @@ function onOrder(d: Bracket, event: OrderEvent): BracketCommand[] {
       else if (d.filledSz === 0) d.cancelling ??= 'no_fill';
       return [];
     case 'sl':
-      // A fired stop leaves the book on its own; its fill follows.
-      if (event.status === 'triggered') state.status = 'canceling';
+      if (event.status === 'canceled') {
+        if (!ours) replace(d, 'sl');
+        return [];
+      }
       // A stop that fires before any fill means the setup is gone: stop working the entry.
-      if (event.status !== 'canceled' && d.filledSz === 0) d.cancelling ??= 'no_fill';
-      if (event.status === 'canceled' && !ours) replace(d, 'sl');
+      if (d.filledSz === 0) d.cancelling ??= 'no_fill';
+      // HL announces a fired stop before its fills. With size 0 it closes the whole position;
+      // its filled update then gives the exact size it closed.
+      d.sl.size = event.status === 'filled' ? event.filledSz : d.sl.closedSz + openSize(d);
+      if (d.sl.closedSz < d.sl.size) d.sl.status = 'filling';
       return [];
     case 'tp':
       if (event.status === 'canceled' && !ours) replace(d, 'tp');
+      // Filled on the exchange: what we still see resting is the part whose fills are on the way.
+      if (event.status === 'filled' && d.tp.size > 0) d.tp.status = 'filling';
       return [];
     case 'close':
       if (event.status === 'canceled') d.attention = 'close_failed';

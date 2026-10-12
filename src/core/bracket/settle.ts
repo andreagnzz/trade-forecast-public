@@ -30,6 +30,10 @@ function cancelLive(d: Bracket, legs: readonly LegName[]): BracketCommand[] {
   return commands;
 }
 
+// A fired exit closes part or all of the position: until its fills arrive, the open size is
+// stale and nothing is placed against it.
+const exitDue = (d: Bracket) => d.sl.status === 'filling' || d.tp.status === 'filling';
+
 const inFlight = (d: Bracket) =>
   LEGS.some((leg) => d[leg].status === 'sending' || d[leg].status === 'canceling');
 
@@ -55,7 +59,8 @@ function flatten(d: Bracket): BracketCommand[] {
 function protect(d: Bracket): BracketCommand[] {
   // Fills the entry announced but that have not arrived yet are exposure too.
   const exposed = openSize(d) > 0 || d.entry.status === 'live' || d.entry.size > d.filledSz;
-  if (d.sl.status === 'done' && exposed && d.attention !== 'sl_failed') replace(d, 'sl');
+  if (d.sl.status === 'done' && exposed && d.attention !== 'sl_failed' && !exitDue(d))
+    replace(d, 'sl');
   const commands: BracketCommand[] = [];
   if (d.sl.status === 'idle') {
     d.sl.status = 'sending';
@@ -73,7 +78,7 @@ function protect(d: Bracket): BracketCommand[] {
 function takeProfit(d: Bracket): BracketCommand[] {
   const { tp } = d;
   const size = openSize(d);
-  const blocked = isTpAttention(d.attention) || d.close.status === 'sending';
+  const blocked = isTpAttention(d.attention) || d.close.status === 'sending' || exitDue(d);
   if (tp.px === null || blocked || size <= 0) return [];
   // An entry often fills in pieces: HL refuses a take-profit under the minimum unless it
   // closes the whole position, so wait for more fills, or for the entry to finish.

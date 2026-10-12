@@ -275,6 +275,18 @@ describe('entry without fill', () => {
     expect(commands).toContainEqual(expect.objectContaining({ type: 'place', cloid: c('sl', 1) }));
   });
 
+  it('protects an entry that fills after its stop fired while flat, with no stop event after', () => {
+    const plan = { ...PLAN, entry: { type: 'ioc' as const, px: 80_100 } };
+    const { state, commands } = run(
+      working(plan),
+      order(c('sl'), 'triggered'),
+      order(c('entry'), 'filled', 0.003),
+      buy(0.003),
+    );
+    expect(commands).toContainEqual(expect.objectContaining({ type: 'place', cloid: c('sl', 1) }));
+    expect(run(state, order(c('sl', 1), 'open')).state.sl.status).toBe('live');
+  });
+
   it('waits for every announced fill before ending an unfilled bracket', () => {
     const { state } = run(
       working(),
@@ -436,6 +448,41 @@ describe('close and OCO cleanup', () => {
     expect(run(state, order(c('sl'), 'canceled')).state.outcome).toEqual({ kind: 'closed' });
   });
 
+  it('places nothing while a fired stop announces its exit before the fill', () => {
+    const { state, commands } = run(
+      filled(),
+      order(c('sl'), 'triggered'),
+      order(c('tp'), 'canceled'),
+      order(c('sl'), 'filled', 0.003),
+    );
+    expect(commands.filter((cmd) => cmd.type === 'place' || cmd.type === 'modify')).toEqual([]);
+    expect(isUnprotected(state)).toBe(false);
+    const closed = run(state, sell(0.003, -3.2, c('sl')));
+    expect(closed.commands.filter((cmd) => cmd.type === 'place')).toEqual([]);
+    expect(closed.state.outcome).toEqual({ kind: 'closed' });
+  });
+
+  it('waits for a stop that fills in pieces before placing it again', () => {
+    const fired = run(
+      filled(),
+      order(c('sl'), 'triggered'),
+      order(c('sl'), 'filled', 0.002),
+      sell(0.001, 0, c('sl')),
+    );
+    expect(fired.commands.filter((cmd) => cmd.type === 'place')).toEqual([]);
+    const rest = run(fired.state, sell(0.001, 0, c('sl')));
+    expect(rest.commands).toContainEqual(
+      expect.objectContaining({ type: 'place', cloid: c('sl', 1) }),
+    );
+  });
+
+  it('places nothing while a filled take-profit announces its exit before the fill', () => {
+    const announced = run(filled(), order(c('tp'), 'filled', 0.003));
+    expect(announced.commands).toEqual([]);
+    const { commands } = run(announced.state, sell(0.003, 6, c('tp')));
+    expect(commands).toEqual([{ type: 'cancel', cloid: c('sl') }]);
+  });
+
   it('closes when HL already pulled the take-profit as reduce-only', () => {
     const { state } = run(
       filled(),
@@ -474,7 +521,11 @@ describe('close and OCO cleanup', () => {
   });
 
   it('places the stop again when a fired stop left part of the position open', () => {
-    const { state, commands } = run(filled(), sell(0.001), order(c('sl'), 'filled', 0.001));
+    const { state, commands } = run(
+      filled(),
+      sell(0.001, 0, c('sl')),
+      order(c('sl'), 'filled', 0.001),
+    );
     expect(state.outcome).toBeNull();
     expect(commands).toContainEqual(expect.objectContaining({ type: 'place', cloid: c('sl', 1) }));
   });

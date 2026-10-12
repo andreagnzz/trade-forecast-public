@@ -179,7 +179,7 @@ export function createBracketManager(deps: BracketManagerDeps) {
     if (verdict.verdict === 'block') return 'blocked';
     const step = openBracket(plan);
     // Exchange time, not the local clock: fills are stamped by the exchange.
-    saved = { version: 1, since: position.time, bracket: step.state };
+    saved = { version: 2, since: position.time, bracket: step.state };
     lastError = null;
     commit(step);
     return null;

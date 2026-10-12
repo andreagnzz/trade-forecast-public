@@ -26,7 +26,8 @@ export interface BracketPlan {
   riskUsd: number;
 }
 
-type LegStatus = 'idle' | 'sending' | 'live' | 'canceling' | 'waiting' | 'done';
+// filling: the order left the book filled or triggered, and its fills are still on the way.
+type LegStatus = 'idle' | 'sending' | 'live' | 'canceling' | 'waiting' | 'filling' | 'done';
 
 interface LegState {
   seq: number;
@@ -43,7 +44,8 @@ type CancelReason = 'no_fill' | 'sl_rejected' | 'dismissed';
 export interface Bracket {
   plan: BracketPlan;
   entry: LegState;
-  sl: LegState;
+  // Once the stop fires, size is what it closes and closedSz what its fills have closed so far.
+  sl: LegState & { closedSz: number };
   // prev is the order a modify in flight replaces: it still rests until the modify lands.
   tp: LegState & {
     px: number | null;
@@ -161,7 +163,7 @@ export function openBracket(plan: BracketPlan): Step {
   const state: Bracket = {
     plan,
     entry: leg(),
-    sl: { ...leg(), status: 'sending' },
+    sl: { ...leg(), status: 'sending', closedSz: 0 },
     tp: { ...leg(), px: plan.tpPx, sentPx: null, prev: null },
     close: leg(),
     filledSz: 0,
@@ -196,6 +198,8 @@ export function phase(b: Bracket): Phase {
 export const stopCrossed = (plan: BracketPlan, markPx: number) =>
   plan.side === 'long' ? markPx <= plan.stopPx : markPx >= plan.stopPx;
 
-export const isUnprotected = (b: Bracket) => openSize(b) > 0 && b.sl.status !== 'live';
+// A fired stop is closing the position: that is not a gap.
+export const isUnprotected = (b: Bracket) =>
+  openSize(b) > 0 && b.sl.status !== 'live' && b.sl.status !== 'filling';
 
 export const rMultiple = (b: Bracket) => b.pnlUsd / b.plan.riskUsd;

@@ -36,7 +36,15 @@ const ATTENTION: Record<Attention, string> = {
   close_failed: 'Market close did not fill.',
 };
 
-const LEG_MARK = { idle: '·', sending: '…', live: '✓', canceling: '…', waiting: '↻', done: '–' };
+const LEG_MARK = {
+  idle: '·',
+  sending: '…',
+  live: '✓',
+  canceling: '…',
+  waiting: '↻',
+  filling: '…',
+  done: '–',
+};
 
 const legs = computed(() => {
   const b = execution.bracket;
