@@ -11,7 +11,7 @@ export async function calibrate() {
   const id = randomBracketId();
   const since = (await reads.position(COIN)).time;
   const open = await market(COIN);
-  const size = open.sz(15 / open.ask + 10 ** -open.szDecimals);
+  const size = open.sizeForUsd(15);
   await orders.send(COIN, {
     type: 'place',
     cloid: makeCloid('7465', id, 'entry', 0),

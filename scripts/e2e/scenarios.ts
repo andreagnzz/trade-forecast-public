@@ -1,5 +1,5 @@
 import { setTimeout as sleep } from 'node:timers/promises';
-import { openSize, phase, type BracketPlan } from '../../src/core/bracket/bracket';
+import { openSize, phase, type BracketPlan, type Phase } from '../../src/core/bracket/bracket';
 import { makeCloid } from '../../src/core/bracket/cloid';
 import { changeRules, initialRulesState } from '../../src/core/rules';
 import { loadAsks } from '../../src/hl/marketData';
@@ -56,7 +56,7 @@ async function protectedMarketBracket(options: { tpPx?: number; stopPx?: number 
 }
 
 // A timeout says where the bracket stopped, not only that it stopped.
-async function waitPhase(session: Session, wanted: string, ms?: number) {
+async function waitPhase(session: Session, wanted: Phase, ms?: number) {
   await waitFor(
     wanted,
     () => {

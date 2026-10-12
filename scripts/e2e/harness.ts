@@ -144,7 +144,9 @@ export async function market(coin: string) {
     markPx: spec.markPx,
     szDecimals: spec.szDecimals,
     px: (x: number) => snapPrice(x, spec.szDecimals),
-    sz: (x: number) => snapSize(x, spec.szDecimals),
+    // One lot above the notional, so the snapped size never drops under it.
+    sizeForUsd: (usd: number) =>
+      snapSize(usd / quote.ask + 10 ** -spec.szDecimals, spec.szDecimals),
   };
 }
 
@@ -155,7 +157,7 @@ export async function longPlan(
   const m = await market(coin);
   const entryPx = options.entryPx ?? m.px(m.ask * 1.002);
   const stopPx = options.stopPx ?? m.px(m.bid * 0.98);
-  const size = m.sz((options.usd ?? 15) / m.ask + 10 ** -m.szDecimals);
+  const size = m.sizeForUsd(options.usd ?? 15);
   return {
     id: randomBracketId(),
     prefix: E2E_PREFIX,
@@ -210,9 +212,9 @@ export async function appOrders(id: string) {
 }
 
 export const median = (values: number[]) => {
+  if (values.length === 0) return Number.NaN;
   const sorted = [...values].sort((a, b) => a - b);
   const mid = Math.floor(sorted.length / 2);
-  if (sorted.length === 0) return Number.NaN;
   return sorted.length % 2
     ? (sorted[mid] ?? Number.NaN)
     : ((sorted[mid - 1] ?? 0) + (sorted[mid] ?? 0)) / 2;
