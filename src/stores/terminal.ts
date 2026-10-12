@@ -50,6 +50,7 @@ export const useTerminalStore = defineStore('terminal', () => {
   const tpPx = ref(0);
   const risk = ref<Risk>({ kind: 'pct_equity', value: 0.5 });
   const equity = ref(10_000);
+  const sizingEquity = computed(() => account.value?.equity ?? equity.value);
 
   const dir = computed(() => (side.value === 'long' ? 1 : -1));
   const marketRefPx = computed(() => {
@@ -81,7 +82,7 @@ export const useTerminalStore = defineStore('terminal', () => {
       stopPx: stopPx.value,
       tpPx: tpPx.value,
       risk: risk.value,
-      equity: account.value?.equity ?? equity.value,
+      equity: sizingEquity.value,
       budgetRemainingUsd: account.value?.budgetRemainingUsd,
       maxTradeSz: account.value?.maxTradeSz[side.value],
       stopSlippageBuffer: STOP_SLIPPAGE_BUFFER,
@@ -144,11 +145,12 @@ export const useTerminalStore = defineStore('terminal', () => {
   function setRiskKind(kind: Risk['kind']) {
     const { value } = risk.value;
     if (risk.value.kind === kind) return;
-    if (!(Number.isFinite(equity.value) && equity.value > 0)) {
+    const base = sizingEquity.value;
+    if (!(Number.isFinite(base) && base > 0)) {
       risk.value = { kind, value };
       return;
     }
-    const converted = kind === 'usd' ? (equity.value * value) / 100 : (value / equity.value) * 100;
+    const converted = kind === 'usd' ? (base * value) / 100 : (value / base) * 100;
     risk.value = { kind, value: Number(converted.toFixed(2)) };
   }
 

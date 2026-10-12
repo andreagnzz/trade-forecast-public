@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { findStopY, numberIn, openTerminal } from './terminal';
+import { findStopY, numberIn, openTerminal, patchStore } from './terminal';
 
 test('dragging the stop resizes the position without exceeding the risk', async ({ page }) => {
   const chart = await openTerminal(page);
@@ -28,6 +28,19 @@ test('Enter reaches Send from the chart, never from a focused link', async ({ pa
   await page.mouse.click(chart.x + chart.width * 0.4, chart.y + chart.height * 0.5);
   await page.keyboard.press('Enter');
   await expect(keyDialog).toBeVisible();
+});
+
+test('switching the risk unit converts on the account equity in Live', async ({ page }) => {
+  await openTerminal(page);
+  await patchStore(page, 'terminal', {
+    account: {
+      equity: 1000,
+      maxTradeSz: { long: 1, short: 1 },
+      fees: { taker: 0.00045, maker: 0.00015 },
+    },
+  });
+  await page.getByRole('group', { name: 'Risk unit' }).getByRole('button', { name: '$' }).click();
+  await expect(page.locator('#risk-input')).toHaveValue('5');
 });
 
 test('typing in the risk field never moves a line', async ({ page }) => {
