@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue';
+import { computed, ref, useTemplateRef, watch } from 'vue';
 import type { Sizing } from '../core/sizing';
 import { MIN_NOTIONAL_USD } from '../hl/format';
 import { useAccountStore } from '../stores/account';
@@ -10,6 +10,8 @@ import RulesDrawer from './RulesDrawer.vue';
 import { loss, pct, price, rText, signedUsd, sizingErrorText, usd, wholeUsd } from './format';
 
 const store = useTerminalStore();
+const riskInput = useTemplateRef<HTMLInputElement>('riskInput');
+defineExpose({ focusRisk: () => riskInput.value?.focus() });
 const execution = useExecutionStore();
 const account = useAccountStore();
 const emit = defineEmits<{ send: [] }>();
@@ -95,7 +97,14 @@ const equityText = numberField(
       <label class="field">
         <span class="muted">Risk</span>
         <span class="input-row">
-          <input id="risk-input" v-model="riskText" class="num" type="text" inputmode="decimal" />
+          <input
+            id="risk-input"
+            ref="riskInput"
+            v-model="riskText"
+            class="num"
+            type="text"
+            inputmode="decimal"
+          />
           <span class="segmented unit" role="group" aria-label="Risk unit">
             <button
               :aria-pressed="store.risk.kind === 'pct_equity'"

@@ -29,6 +29,7 @@ const execution = useExecutionStore();
 const account = useAccountStore();
 const help = useTemplateRef<HTMLDialogElement>('help');
 const keyDialog = useTemplateRef<InstanceType<typeof KeyDialog>>('keyDialog');
+const panel = useTemplateRef<InstanceType<typeof ForecastPanel>>('panel');
 
 // Storage throws when site data is blocked.
 function readHintSeen() {
@@ -79,7 +80,7 @@ function onKeydown(event: KeyboardEvent) {
       break;
     case 'r':
       event.preventDefault();
-      document.getElementById('risk-input')?.focus();
+      panel.value?.focusRisk();
       break;
     case 'escape':
       store.reset();
@@ -146,7 +147,7 @@ onBeforeUnmount(() => {
           <span>Market data unavailable. <button @click="store.start()">Retry</button></span>
         </p>
       </div>
-      <ForecastPanel @send="sendOrConnect" />
+      <ForecastPanel ref="panel" @send="sendOrConnect" />
     </main>
 
     <footer class="bar foot muted">
