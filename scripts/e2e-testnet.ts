@@ -1,5 +1,6 @@
 import { writeFile } from 'node:fs/promises';
 import { setTimeout as sleep } from 'node:timers/promises';
+import { messageOf } from '../src/hl/errors';
 import { calibrate } from './e2e/calibrate';
 import { COIN, flatten, median } from './e2e/harness';
 import { scenarios, type Run } from './e2e/scenarios';
@@ -36,7 +37,7 @@ async function cleanUp() {
       await flatten(COIN);
       return;
     } catch (error) {
-      console.log(`  cleanup failed: ${error instanceof Error ? error.message : String(error)}`);
+      console.log(`  cleanup failed: ${messageOf(error)}`);
     }
   }
 }
@@ -50,7 +51,7 @@ for (const [scenario, count] of PLAN) {
       if (!play) throw new Error(`unknown scenario: ${scenario}`);
       run = { scenario, ok: true, ...(await play()) };
     } catch (error) {
-      run = { scenario, ok: false, note: error instanceof Error ? error.message : String(error) };
+      run = { scenario, ok: false, note: messageOf(error) };
       await cleanUp();
     }
     runs.push(run);

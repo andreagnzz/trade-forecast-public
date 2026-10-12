@@ -5,7 +5,7 @@ import { APP_PREFIX, makeCloid, parseCloid, type Cloid } from '../core/bracket/c
 import type { Rules } from '../core/rules';
 import { loadFills, loadOpenOrders, loadPosition, subscribeAccount } from '../hl/account';
 import { connectAgent, type ExecutionClient } from '../hl/exchange';
-import { errorText } from '../hl/errors';
+import { errorText, messageOf } from '../hl/errors';
 import { exitPx, MIN_NOTIONAL_USD, snapPrice } from '../hl/format';
 import {
   createBracketManager,
@@ -195,7 +195,7 @@ export const useExecutionStore = defineStore('execution', () => {
       return true;
     } catch (error) {
       rollBack();
-      keyError.value = `connect failed: ${error instanceof Error ? error.message : String(error)}`;
+      keyError.value = `connect failed: ${messageOf(error)}`;
       return false;
     } finally {
       connecting.value = false;

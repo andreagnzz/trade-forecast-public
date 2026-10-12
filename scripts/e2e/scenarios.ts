@@ -2,6 +2,7 @@ import { setTimeout as sleep } from 'node:timers/promises';
 import { openSize, phase, type BracketPlan, type Phase } from '../../src/core/bracket/bracket';
 import { E2E_PREFIX, makeCloid } from '../../src/core/bracket/cloid';
 import { changeRules, initialRulesState } from '../../src/core/rules';
+import { messageOf } from '../../src/hl/errors';
 import { loadAsks } from '../../src/hl/marketData';
 import { randomBracketId } from '../../src/services/bracketManager';
 import {
@@ -76,9 +77,7 @@ async function waitPhase(session: Session, wanted: Phase, ms?: number) {
       attention: b.attention,
       lastError: session.view().lastError,
     };
-    throw new Error(
-      `${error instanceof Error ? error.message : String(error)} ${JSON.stringify(state)}`,
-    );
+    throw new Error(`${messageOf(error)} ${JSON.stringify(state)}`);
   });
 }
 

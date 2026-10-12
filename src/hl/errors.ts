@@ -41,6 +41,9 @@ const ERROR_TEXT: Record<HlErrorCode, string> = {
 };
 
 // An unrecognised rejection keeps HL's own words: they are the only clue the trader gets.
+export const messageOf = (error: unknown) =>
+  error instanceof Error ? error.message : String(error);
+
 export const errorText = (error: HlError) =>
   error.code === 'Unknown' ? `rejected: ${error.message}` : ERROR_TEXT[error.code];
 

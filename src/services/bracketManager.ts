@@ -12,6 +12,7 @@ import { currentLeg } from '../core/bracket/legs';
 import type { UserEvent } from '../core/bracket/choices';
 import { reduceBracket } from '../core/bracket/reduce';
 import type { AccountFill, AccountOrder, OrderUpdate, Position } from '../hl/account';
+import { messageOf } from '../hl/errors';
 import type { ExecutionClient } from '../hl/exchange';
 import {
   queryEvent,
@@ -94,7 +95,7 @@ export function createBracketManager(deps: BracketManagerDeps) {
     queue = queue
       .then(() => execute(command, coin))
       .catch((error: unknown) => {
-        lastError = `internal error: ${error instanceof Error ? error.message : String(error)}`;
+        lastError = `internal error: ${messageOf(error)}`;
         notify();
         // Whether the order left is unknown: ask the exchange rather than leave it in flight.
         if (command.type === 'place') dispatch({ type: 'uncertain', cloid: command.cloid });
@@ -200,7 +201,7 @@ export function createBracketManager(deps: BracketManagerDeps) {
     try {
       [open, fills] = await Promise.all([reads.openOrders(), reads.fills(since)]);
     } catch (error) {
-      lastError = `sync failed, retrying: ${error instanceof Error ? error.message : String(error)}`;
+      lastError = `sync failed, retrying: ${messageOf(error)}`;
       notify();
       clock.setTimeout(() => {
         void reconcile();
