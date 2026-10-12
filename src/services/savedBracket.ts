@@ -1,4 +1,4 @@
-import type { Bracket } from '../core/bracket/bracket';
+import { LEGS, type Bracket } from '../core/bracket/bracket';
 
 export interface Saved {
   version: 3;
@@ -15,7 +15,7 @@ function isBracket(value: unknown): value is Bracket {
     isObject(plan) &&
     typeof Reflect.get(plan, 'id') === 'string' &&
     typeof Reflect.get(plan, 'coin') === 'string' &&
-    ['entry', 'sl', 'tp', 'close'].every((leg) => isObject(Reflect.get(value, leg)))
+    LEGS.every((leg) => isObject(Reflect.get(value, leg)))
   );
 }
 

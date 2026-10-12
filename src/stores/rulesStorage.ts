@@ -5,35 +5,34 @@ import { initialRulesState, type RulesState } from '../core/rules';
 const key = (master: string) => `tf.rules.${master}`;
 
 const isObject = (value: unknown): value is object => typeof value === 'object' && value !== null;
-const field = (value: object, name: string): unknown => Reflect.get(value, name);
 // JSON has no NaN or Infinity, so a positive number is all a stored limit needs to be usable.
 const isLimitUsd = (value: unknown) => typeof value === 'number' && value > 0;
 const isLockReason = (value: unknown) => value === 'one_bullet' || value === 'loss_limit';
 
 function isRules(value: unknown): boolean {
-  if (!isObject(value) || typeof field(value, 'oneBullet') !== 'boolean') return false;
-  const limit = field(value, 'lossLimit');
+  if (!isObject(value) || typeof Reflect.get(value, 'oneBullet') !== 'boolean') return false;
+  const limit: unknown = Reflect.get(value, 'lossLimit');
   return (
     limit === null ||
     (isObject(limit) &&
-      isLimitUsd(field(limit, 'usd')) &&
-      typeof field(limit, 'hard') === 'boolean')
+      isLimitUsd(Reflect.get(limit, 'usd')) &&
+      typeof Reflect.get(limit, 'hard') === 'boolean')
   );
 }
 
 function isRulesState(value: unknown): value is RulesState {
-  if (!isObject(value) || !isRules(field(value, 'rules'))) return false;
-  const pending = field(value, 'pending');
-  const lock = field(value, 'lock');
+  if (!isObject(value) || !isRules(Reflect.get(value, 'rules'))) return false;
+  const pending: unknown = Reflect.get(value, 'pending');
+  const lock: unknown = Reflect.get(value, 'lock');
   return (
     (pending === null ||
       (isObject(pending) &&
-        isRules(field(pending, 'rules')) &&
-        typeof field(pending, 'from') === 'number')) &&
+        isRules(Reflect.get(pending, 'rules')) &&
+        typeof Reflect.get(pending, 'from') === 'number')) &&
     (lock === null ||
       (isObject(lock) &&
-        isLockReason(field(lock, 'reason')) &&
-        typeof field(lock, 'until') === 'number'))
+        isLockReason(Reflect.get(lock, 'reason')) &&
+        typeof Reflect.get(lock, 'until') === 'number'))
   );
 }
 
