@@ -103,6 +103,64 @@ describe('closedRoundTrips', () => {
     }
   });
 
+  it('keeps a loss closed and reopened within one millisecond on a new coin, in any order', () => {
+    const open = fill(1, 0, 1);
+    const stop = fill(1, 1, -1, -3);
+    const reopen = fill(1, 0, 1);
+    for (const fills of [
+      [open, stop, reopen],
+      [reopen, stop, open],
+      [stop, open, reopen],
+      [stop, reopen, open],
+    ]) {
+      expect(closedRoundTrips(fills)).toEqual([
+        { coin: 'BTC', openTime: 1, closeTime: 1, netPnl: -3 },
+      ]);
+    }
+  });
+
+  it('counts two round-trips closed within one millisecond on a new coin', () => {
+    const fills = [fill(1, 1, -1, -2), fill(1, 0, 1), fill(1, 1, -1, -3), fill(1, 0, 1)];
+    const pnls = closedRoundTrips(fills).map((t) => t.netPnl);
+    expect(pnls.sort((a, b) => a - b)).toEqual([-3, -2]);
+  });
+
+  it('pairs same-millisecond round-trips the same way whatever order the fills arrive in', () => {
+    const fills = [fill(1, 0, 1, 0, 1), fill(1, 1, -1, 0.5), fill(1, 0, 1), fill(1, 1, -1, 10)];
+    const results = new Set<string>();
+    for (const order of [
+      [0, 1, 2, 3],
+      [0, 3, 2, 1],
+      [2, 1, 0, 3],
+      [3, 2, 1, 0],
+    ]) {
+      const trips = closedRoundTrips(order.map((i) => fills[i]).filter((f) => f !== undefined));
+      results.add(JSON.stringify(trips.map((t) => t.netPnl).sort((a, b) => a - b)));
+    }
+    expect(results.size).toBe(1);
+  });
+
+  it('keeps a later loss when a stray fill lands in the same millisecond as a close', () => {
+    const trips = closedRoundTrips([
+      fill(1, 0, 1),
+      fill(2, 5, 1),
+      fill(2, 1, -1, -3),
+      fill(3, 0, 1),
+      fill(3, 1, -1, -4),
+    ]);
+    expect(trips.map((t) => t.netPnl)).toEqual([-3, -4]);
+  });
+
+  it('chains a millisecond whose fills do not start at the known position', () => {
+    const trips = closedRoundTrips([
+      fill(1, 0, 2),
+      fill(2, 1, -1),
+      fill(2, 0, 1),
+      fill(2, 1, -1, -3),
+    ]);
+    expect(trips.map((t) => t.netPnl)).toEqual([0, -3]);
+  });
+
   it('counts a fill delivered twice only once', () => {
     const open = fill(1, 0, 1, 0, 1);
     const trips = closedRoundTrips([open, open, fill(2, 1, -1, 0, 1)]);
@@ -130,6 +188,41 @@ describe('closedRoundTrips', () => {
         const expected = fills.reduce((sum, f) => sum + f.closedPnl - f.fee, 0);
         const actual = closedRoundTrips(fills).reduce((sum, t) => sum + t.netPnl, 0);
         expect(actual).toBeCloseTo(expected, 6);
+      }),
+    );
+  });
+
+  it('finds the same round-trips when a whole history lands in one millisecond, shuffled', () => {
+    const steps = fc.array(
+      fc.record({
+        lots: fc.integer({ min: -5, max: 5 }).filter((n) => n !== 0),
+        closedPnl: fc.double({ min: -100, max: 100, noNaN: true }),
+        rank: fc.double({ noNaN: true }),
+      }),
+      { maxLength: 20 },
+    );
+    fc.assert(
+      fc.property(steps, (history) => {
+        const legs: { lots: number; closedPnl: number; rank: number }[] = [...history];
+        const end = history.reduce((sum, step) => sum + step.lots, 0);
+        if (end !== 0) legs.push({ lots: -end, closedPnl: 0, rank: 0 });
+        const atTimes = (time: (i: number) => number) => {
+          let position = 0;
+          return legs.map((leg, i) => {
+            const f = fill(time(i), position, leg.lots, leg.closedPnl);
+            position += leg.lots;
+            return { fill: f, rank: leg.rank };
+          });
+        };
+        const inOrder = closedRoundTrips(atTimes((i) => i).map((r) => r.fill));
+        const shuffled = closedRoundTrips(
+          atTimes(() => 1)
+            .sort((a, b) => a.rank - b.rank)
+            .map((r) => r.fill),
+        );
+        expect(shuffled).toHaveLength(inOrder.length);
+        const total = (trips: { netPnl: number }[]) => trips.reduce((s, t) => s + t.netPnl, 0);
+        expect(total(shuffled)).toBeCloseTo(total(inOrder), 6);
       }),
     );
   });

@@ -10,27 +10,65 @@ export interface RoundTrip {
 const progress = (f: Fill) => (f.side === 'buy' ? f.startPosition : -f.startPosition);
 const endPosition = (f: Fill) => f.startPosition + (f.side === 'buy' ? f.sz : -f.sz);
 
+// Perp sizes have at most 6 decimals (prices get 6 - szDecimals), so fixing 6 turns start + sz
+// back into the next fill's start.
+const key = (position: number) => position.toFixed(6);
+
+// A coin's fills in one ms form a path over positions, each starting where the last one ended.
+// It starts at the coin's known position; else where more fills start than end, else at flat
+// when the fills loop through it, else at the first start. Walking it as an Euler path
+// (Hierholzer) never strands a fill the way picking the nearest start can. Fills off the path
+// (missing or stray fills) are kept so no PnL is lost.
+function chain(fills: Fill[], from: number | undefined): { path: Fill[]; rest: Fill[] } {
+  const next = new Map<string, Fill[]>();
+  const surplus = new Map<string, number>();
+  // Reversed so pop() hands out the earliest fill of the sort.
+  for (const f of [...fills].reverse()) {
+    const start = key(f.startPosition);
+    const list = next.get(start);
+    if (list) list.push(f);
+    else next.set(start, [f]);
+    surplus.set(start, (surplus.get(start) ?? 0) + 1);
+    surplus.set(key(endPosition(f)), (surplus.get(key(endPosition(f))) ?? 0) - 1);
+  }
+  const loopStart = next.has(key(0)) ? key(0) : fills[0] && key(fills[0].startPosition);
+  const first =
+    from !== undefined && next.has(key(from))
+      ? key(from)
+      : ([...surplus].find(([, n]) => n > 0)?.[0] ?? loopStart);
+  const stack: { fill: Fill | null; at: string | undefined }[] = [{ fill: null, at: first }];
+  const path: Fill[] = [];
+  for (let top = stack.at(-1); top; top = stack.at(-1)) {
+    const f = top.at === undefined ? undefined : next.get(top.at)?.pop();
+    if (f) {
+      stack.push({ fill: f, at: key(endPosition(f)) });
+    } else {
+      stack.pop();
+      if (top.fill) path.push(top.fill);
+    }
+  }
+  return { path: path.reverse(), rest: [...next.values()].flatMap((list) => list.reverse()) };
+}
+
 // Fills sharing a ms arrive in no guaranteed order, possibly from orders in opposite directions.
-// Each coin's next fill is the one starting where its position stands; the signed-startPosition
-// sort only breaks ties for a coin seen for the first time.
+// The tid tie-break only makes the result independent of arrival order: when two same-ms
+// round-trips have the same shape, positions alone cannot tell which open each close ends.
 function executionOrder(fills: Fill[]): Fill[] {
-  fills.sort((a, b) => a.time - b.time || progress(a) - progress(b));
-  const byTime = new Map<number, Fill[]>();
+  fills.sort((a, b) => a.time - b.time || progress(a) - progress(b) || a.tid - b.tid);
+  const groups = new Map<string, { coin: string; fills: Fill[] }>();
   for (const f of fills) {
-    const group = byTime.get(f.time);
-    if (group) group.push(f);
-    else byTime.set(f.time, [f]);
+    const id = `${String(f.time)} ${f.coin}`;
+    const group = groups.get(id);
+    if (group) group.fills.push(f);
+    else groups.set(id, { coin: f.coin, fills: [f] });
   }
   const position = new Map<string, number>();
-  const gap = (f: Fill) => Math.abs(f.startPosition - (position.get(f.coin) ?? f.startPosition));
   const ordered: Fill[] = [];
-  for (const group of byTime.values()) {
-    while (group.length > 0) {
-      const next = group.reduce((best, f) => (gap(f) < gap(best) ? f : best));
-      group.splice(group.indexOf(next), 1);
-      ordered.push(next);
-      position.set(next.coin, endPosition(next));
-    }
+  for (const { coin, fills: group } of groups.values()) {
+    const { path, rest } = chain(group, position.get(coin));
+    const last = path.at(-1);
+    if (last) position.set(coin, endPosition(last));
+    ordered.push(...path, ...rest);
   }
   return ordered;
 }
