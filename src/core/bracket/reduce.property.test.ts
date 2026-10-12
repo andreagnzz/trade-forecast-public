@@ -198,7 +198,7 @@ function simulate(actions: Action[]) {
         feed({ type: 'retry_due', leg: command.leg });
         return;
       case 'wait_fills':
-        feed({ type: 'fills_due', leg: command.leg });
+        feed({ type: 'fills_due', leg: command.leg, seq: command.seq });
     }
   };
 

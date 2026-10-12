@@ -165,7 +165,7 @@ export function createBracketManager(deps: BracketManagerDeps) {
         return;
       case 'wait_fills':
         clock.setTimeout(() => {
-          dispatch({ type: 'fills_due', leg: command.leg });
+          dispatch({ type: 'fills_due', leg: command.leg, seq: command.seq });
         }, command.delayMs);
     }
   }

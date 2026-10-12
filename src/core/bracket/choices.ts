@@ -24,7 +24,9 @@ export function applyChoice(d: Bracket, event: UserEvent): BracketCommand[] {
       return [{ type: 'cancel', cloid: legCloid(d, 'entry') }];
     case 'close': {
       const order = exitOrder(d, event.px, 'ioc');
-      if (!validPx(event.px) || order.size <= 0 || d.close.status === 'sending') return [];
+      // A close waiting for its fills would be sized on a position it already closed.
+      const busy = d.close.status === 'sending' || d.close.status === 'filling';
+      if (!validPx(event.px) || order.size <= 0 || busy) return [];
       // Any close sent before used its cloid, even one still waiting for its fills.
       if (d.close.status !== 'idle' && !replace(d, 'close')) return [];
       d.close.status = 'sending';

@@ -27,7 +27,9 @@ function awaitFills(
   wasFilling: boolean,
 ): BracketCommand[] {
   d[exit].status = 'filling';
-  return wasFilling ? [] : [{ type: 'wait_fills', leg: exit, delayMs: FILLS_DUE_MS }];
+  return wasFilling
+    ? []
+    : [{ type: 'wait_fills', leg: exit, seq: d[exit].seq, delayMs: FILLS_DUE_MS }];
 }
 
 // Every attempt that did not leave a protective leg resting counts: the next one waits longer,
@@ -194,9 +196,11 @@ function apply(d: Bracket, event: BracketEvent): BracketCommand[] {
     case 'retry_due':
       if (d[event.leg].status === 'waiting') d[event.leg].status = 'idle';
       return [];
-    case 'fills_due':
-      if (d[event.leg].status === 'filling') d[event.leg].status = 'done';
+    case 'fills_due': {
+      const exit = d[event.leg];
+      if (exit.status === 'filling' && exit.seq === event.seq) exit.status = 'done';
       return [];
+    }
     case 'snapshot':
       return reconcile(d, event);
     default:

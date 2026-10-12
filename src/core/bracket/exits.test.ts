@@ -248,8 +248,8 @@ describe('close and OCO cleanup', () => {
       order(c('sl'), 'filled', 0.003),
       sell(0.002, 0, c('sl')),
     );
-    expect(fired.commands).toContainEqual({ type: 'wait_fills', leg: 'sl', delayMs: 3000 });
-    const { commands } = run(fired.state, { type: 'fills_due', leg: 'sl' });
+    expect(fired.commands).toContainEqual({ type: 'wait_fills', leg: 'sl', seq: 0, delayMs: 3000 });
+    const { commands } = run(fired.state, { type: 'fills_due', leg: 'sl', seq: 0 });
     expect(commands).toContainEqual(expect.objectContaining({ type: 'place', cloid: c('sl', 1) }));
   });
 
@@ -262,9 +262,30 @@ describe('close and OCO cleanup', () => {
       order(c('sl', 1), 'open'),
       order(c('sl', 1), 'canceled'),
     ).state;
-    const { state, commands } = run(replaced, { type: 'fills_due', leg: 'sl' });
+    const { state, commands } = run(replaced, { type: 'fills_due', leg: 'sl', seq: 0 });
     expect(commands).toEqual([]);
     expect(state.sl.status).toBe('waiting');
+  });
+
+  it('ignores a fills timer of an older close once a newer one waits for its fills', () => {
+    const first = run(
+      filled(),
+      { type: 'close', px: 81_000 },
+      sell(0.001, 0, c('close')),
+      order(c('close'), 'filled', 0.002),
+    ).state;
+    expect(first.close.status).toBe('filling');
+    const { state } = run(first, { type: 'fills_due', leg: 'close', seq: 1 });
+    expect(state.close.status).toBe('filling');
+  });
+
+  it('sends no second close while the first one waits for its fills', () => {
+    const waiting = run(
+      filled(),
+      { type: 'close', px: 81_000 },
+      order(c('close'), 'filled', 0.003),
+    ).state;
+    expect(run(waiting, { type: 'close', px: 80_900 }).commands).toEqual([]);
   });
 
   it('reports exposure beyond what the fired stop closes as unprotected', () => {
@@ -280,7 +301,7 @@ describe('close and OCO cleanup', () => {
 
   it('places nothing while a filled take-profit announces its exit before the fill', () => {
     const announced = run(filled(), order(c('tp'), 'filled', 0.003));
-    expect(announced.commands).toEqual([{ type: 'wait_fills', leg: 'tp', delayMs: 3000 }]);
+    expect(announced.commands).toEqual([{ type: 'wait_fills', leg: 'tp', seq: 0, delayMs: 3000 }]);
     const { commands } = run(announced.state, sell(0.003, 6, c('tp')));
     expect(commands).toEqual([{ type: 'cancel', cloid: c('sl') }]);
   });
@@ -310,7 +331,12 @@ describe('close and OCO cleanup', () => {
     }).state;
     const closing = run(sent, { type: 'retry_due', leg: 'tp' }, order(c('close'), 'filled', 0.003));
     expect(closing.commands.filter((cmd) => legOf(cmd) === 'tp')).toEqual([]);
-    expect(closing.commands).toContainEqual({ type: 'wait_fills', leg: 'close', delayMs: 3000 });
+    expect(closing.commands).toContainEqual({
+      type: 'wait_fills',
+      leg: 'close',
+      seq: 0,
+      delayMs: 3000,
+    });
     const { state } = run(closing.state, sell(0.003, 0, c('close')), order(c('sl'), 'canceled'));
     expect(state.outcome).toEqual({ kind: 'closed' });
   });
@@ -365,7 +391,7 @@ describe('close and OCO cleanup', () => {
     const { commands } = run(
       filled(),
       { type: 'close', px: 81_000 },
-      sell(0.001),
+      sell(0.001, 0, c('close')),
       order(c('close'), 'filled', 0.001),
       { type: 'close', px: 80_900 },
     );

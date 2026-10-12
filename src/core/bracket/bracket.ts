@@ -93,7 +93,8 @@ export type BracketEvent =
   | { type: 'uncertain' | 'unknown'; cloid: string }
   | ({ type: 'fill' } & BracketFill)
   | { type: 'retry_due'; leg: 'sl' | 'tp' }
-  | { type: 'fills_due'; leg: 'sl' | 'tp' | 'close' }
+  // seq ties the timer to the order it waits for: a newer one of the same leg keeps waiting.
+  | { type: 'fills_due'; leg: 'sl' | 'tp' | 'close'; seq: number }
   | {
       type: 'snapshot';
       // A reload lost the previous page's requests and timers; a resync of the same page did not.
@@ -110,7 +111,7 @@ export type BracketCommand =
   | { type: 'cancel'; cloid: Cloid }
   | { type: 'query'; cloid: Cloid }
   | { type: 'retry'; leg: 'sl' | 'tp'; delayMs: number }
-  | { type: 'wait_fills'; leg: 'sl' | 'tp' | 'close'; delayMs: number };
+  | { type: 'wait_fills'; leg: 'sl' | 'tp' | 'close'; seq: number; delayMs: number };
 
 export interface Step {
   state: Bracket;
