@@ -1,4 +1,11 @@
-import { exitIsBuy, roundSize, type Attention, type Bracket, type BracketFill } from './bracket';
+import {
+  exitIsBuy,
+  roundSize,
+  type Attention,
+  type Bracket,
+  type BracketCommand,
+  type BracketFill,
+} from './bracket';
 import { isCloid, parseCloid, type Cloid, type LegName } from './cloid';
 
 // One of this bracket's orders, whatever its seq.
@@ -24,6 +31,18 @@ export function isStale(d: Bracket, cloid: string): cloid is Cloid {
 }
 
 type ExitLeg = 'sl' | 'tp' | 'close';
+
+// A fired exit's fills normally follow within a second. Past this, the bracket stops waiting and
+// protects the position it sees: a duplicate stop is cancelled when flat, a missing one is naked.
+const FILLS_DUE_MS = 3000;
+
+// The exit stays announced until its fills arrive; the timer starts once, on the first event.
+export function awaitFills(d: Bracket, exit: ExitLeg, wasFilling: boolean): BracketCommand[] {
+  d[exit].status = 'filling';
+  return wasFilling
+    ? []
+    : [{ type: 'wait_fills', leg: exit, seq: d[exit].seq, delayMs: FILLS_DUE_MS }];
+}
 
 const FAILED = { sl: 'sl_failed', tp: 'tp_failed', close: 'close_failed' } as const;
 

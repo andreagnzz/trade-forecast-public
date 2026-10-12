@@ -9,28 +9,22 @@ import {
 } from './bracket';
 import { applyChoice } from './choices';
 import type { LegName } from './cloid';
-import { alert, applyFill, currentLeg, giveUp, isStale, replace, revertTp } from './legs';
+import {
+  alert,
+  applyFill,
+  awaitFills,
+  currentLeg,
+  giveUp,
+  isStale,
+  replace,
+  revertTp,
+} from './legs';
 import { reconcile } from './reconcile';
 import { settle } from './settle';
 
 const MAX_ATTEMPTS = 5;
-// A fired exit's fills normally follow within a second. Past this, the bracket stops waiting and
-// protects the position it sees: a duplicate stop is cancelled when flat, a missing one is naked.
-const FILLS_DUE_MS = 3000;
 
 type OrderEvent = Extract<BracketEvent, { type: 'order' }>;
-
-// The exit stays announced until its fills arrive; the timer starts once, on the first event.
-function awaitFills(
-  d: Bracket,
-  exit: 'sl' | 'tp' | 'close',
-  wasFilling: boolean,
-): BracketCommand[] {
-  d[exit].status = 'filling';
-  return wasFilling
-    ? []
-    : [{ type: 'wait_fills', leg: exit, seq: d[exit].seq, delayMs: FILLS_DUE_MS }];
-}
 
 // Every attempt that did not leave a protective leg resting counts: the next one waits longer,
 // under the next seq, and the fifth failure asks the user.
@@ -157,6 +151,8 @@ function onUnknown(d: Bracket, cloid: string): BracketCommand[] {
   if (!leg) return [];
   const state = d[leg];
   if (state.status === 'canceling') state.status = 'done';
+  // A resting stop or take-profit the exchange has no record of is gone: place it again.
+  if (state.status === 'live' && (leg === 'sl' || leg === 'tp')) return failed(d, leg);
   if (state.status !== 'sending') return [];
   switch (leg) {
     case 'entry':

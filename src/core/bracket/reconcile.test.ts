@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { openBracket, phase } from './bracket';
-import { PLAN, T0, buy, c, filled, order, resting, run, working } from './fixtures';
+import { isUnprotected, openBracket, phase } from './bracket';
+import { PLAN, T0, buy, c, cancels, filled, order, resting, run, working } from './fixtures';
 
 describe('reconstruction', () => {
   it('keeps a resting unfilled entry and its stop across a reload', () => {
@@ -189,6 +189,7 @@ describe('reconstruction', () => {
     const { commands } = run(fired, { type: 'snapshot', reload: true, open: [], fills: [] });
     expect(commands).toEqual([
       { type: 'query', cloid: c('sl') },
+      { type: 'wait_fills', leg: 'sl', seq: 0, delayMs: 3000 },
       { type: 'query', cloid: c('tp') },
     ]);
   });
@@ -218,5 +219,76 @@ describe('reconstruction', () => {
       { type: 'retry_due', leg: 'tp' },
     );
     expect(commands).toEqual([{ type: 'cancel', cloid: c('entry') }]);
+  });
+});
+
+describe('resync while requests are in flight', () => {
+  it('leaves an entry being cancelled to its cancel answer, so the stop stays', () => {
+    const cancelling = run(resting(), { type: 'cancel_entry' }).state;
+    const { state, commands } = run(cancelling, {
+      type: 'snapshot',
+      reload: false,
+      open: [{ cloid: c('sl'), size: 0 }],
+      fills: [],
+    });
+    expect(cancels(commands)).toEqual([]);
+    const landed = run(state, order(c('entry'), 'filled', 0.003), buy(0.003)).state;
+    expect(isUnprotected(landed)).toBe(false);
+  });
+
+  it('asks after a reload what became of an entry being cancelled', () => {
+    const cancelling = run(resting(), { type: 'cancel_entry' }).state;
+    const { commands } = run(cancelling, {
+      type: 'snapshot',
+      reload: true,
+      open: [{ cloid: c('sl'), size: 0 }],
+      fills: [],
+    });
+    expect(commands).toEqual([{ type: 'query', cloid: c('entry') }]);
+  });
+
+  it('restarts the fills timer of a fired stop after a reload', () => {
+    const fired = run(filled(), order(c('sl'), 'triggered')).state;
+    const reloaded = run(
+      fired,
+      { type: 'snapshot', reload: true, open: [], fills: [] },
+      order(c('sl'), 'filled', 0.001),
+    );
+    expect(reloaded.commands).toContainEqual({
+      type: 'wait_fills',
+      leg: 'sl',
+      seq: 0,
+      delayMs: 3000,
+    });
+    const { commands } = run(reloaded.state, { type: 'fills_due', leg: 'sl', seq: 0 });
+    expect(commands).toContainEqual(expect.objectContaining({ type: 'place', cloid: c('sl', 1) }));
+  });
+
+  it('places the stop again when the exchange has no record of a live one', () => {
+    const missing = run(
+      filled(),
+      { type: 'snapshot', reload: false, open: [{ cloid: c('tp'), size: 0.003 }], fills: [] },
+      { type: 'unknown', cloid: c('sl') },
+    );
+    expect(missing.commands).toContainEqual({ type: 'retry', leg: 'sl', delayMs: 250 });
+  });
+
+  it('holds the take-profit when fills show a stop missing from the book has fired', () => {
+    const stopFill = {
+      tid: 900,
+      cloid: c('sl'),
+      isBuy: false,
+      size: 0.002,
+      closedPnl: 0,
+      fee: 0,
+      time: T0,
+    };
+    const { commands } = run(filled(), {
+      type: 'snapshot',
+      reload: false,
+      open: [],
+      fills: [stopFill],
+    });
+    expect(commands.filter((cmd) => cmd.type === 'place' || cmd.type === 'modify')).toEqual([]);
   });
 });

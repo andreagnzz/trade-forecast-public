@@ -1,5 +1,12 @@
-import { LEGS, legCloid, type Bracket, type BracketCommand, type BracketEvent } from './bracket';
-import { applyFill, isStale } from './legs';
+import {
+  LEGS,
+  legCloid,
+  openSize,
+  type Bracket,
+  type BracketCommand,
+  type BracketEvent,
+} from './bracket';
+import { applyFill, awaitFills, isStale } from './legs';
 
 function staleOrders(d: Bracket, open: { cloid: string }[]): BracketCommand[] {
   return open.flatMap(({ cloid }) => (isStale(d, cloid) ? [{ type: 'cancel', cloid }] : []));
@@ -21,6 +28,9 @@ export function reconcile(
       else state.status = 'live';
       if (leg === 'entry' && d.attention === 'entry_unknown') d.attention = null;
       if (leg === 'tp') Object.assign(d.tp, { size, prev: null });
+    } else if (leg === 'entry' && state.status === 'canceling') {
+      // Its cancel answer says what it filled. Only a reload lost that answer: ask instead.
+      if (event.reload) commands.push({ type: 'query', cloid: legCloid(d, leg) });
     } else if (
       // On the same page a request in flight still gets its answer; asking first races it.
       (event.reload && state.status === 'sending') ||
@@ -30,6 +40,10 @@ export function reconcile(
       state.status === 'live'
     ) {
       commands.push({ type: 'query', cloid: legCloid(d, leg) });
+      // Its fills timer died with the previous page.
+      if (event.reload && state.status === 'filling' && leg !== 'entry') {
+        commands.push(...awaitFills(d, leg, false));
+      }
     } else if (state.status === 'canceling') {
       state.status = 'done';
     } else if (event.reload && state.status === 'waiting') {
@@ -41,6 +55,12 @@ export function reconcile(
     }
   }
   for (const fill of event.fills) applyFill(d, fill);
+  // Fills under a stop missing from the book prove it fired: hold whatever is sized on the
+  // position until its order status says how much it closed.
+  if (d.sl.status === 'live' && !book.has(legCloid(d, 'sl')) && d.sl.closedSz > 0) {
+    d.sl.size = d.sl.closedSz + openSize(d);
+    commands.push(...awaitFills(d, 'sl', false));
+  }
   // An entry the exchange never saw stays the user's call: its stop stays until they dismiss.
   const unfilled =
     d.entry.status === 'done' &&
