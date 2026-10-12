@@ -33,10 +33,11 @@ type Action =
   | { kind: 'ack'; pick: number; fate: Fate }
   | { kind: 'entry_fill'; lots: number }
   | { kind: 'tp_fill'; lots: number; late: boolean }
-  | { kind: 'reload'; land: boolean }
+  | { kind: 'reload'; land: boolean; lag: number }
   | { kind: 'resync' }
   | { kind: 'sl_fire'; late: boolean }
-  | { kind: 'sl_lost' | 'close' | 'sl_only' };
+  | { kind: 'close'; late: boolean }
+  | { kind: 'sl_lost' | 'sl_only' };
 
 const lots = fc.integer({ min: 1, max: 3000 });
 const action: fc.Arbitrary<Action> = fc.oneof(
@@ -60,10 +61,13 @@ const action: fc.Arbitrary<Action> = fc.oneof(
     weight: 1,
     arbitrary: fc.oneof(
       fc.record({ kind: fc.constant('sl_fire' as const), late: fc.boolean() }),
+      fc.record({ kind: fc.constantFrom('sl_lost' as const, 'sl_only' as const) }),
+      fc.record({ kind: fc.constant('close' as const), late: fc.boolean() }),
       fc.record({
-        kind: fc.constantFrom('sl_lost' as const, 'close' as const, 'sl_only' as const),
+        kind: fc.constant('reload' as const),
+        land: fc.boolean(),
+        lag: fc.nat({ max: 2 }),
       }),
-      fc.record({ kind: fc.constant('reload' as const), land: fc.boolean() }),
       fc.record({ kind: fc.constant('resync' as const) }),
     ),
   },
@@ -86,6 +90,8 @@ function simulate(actions: Action[]) {
   let tid = 0;
   const violations: string[] = [];
   let muted = false;
+  // The close's order status can beat its fill.
+  let lateClose = false;
 
   const feed = (event: BracketEvent) => {
     if (muted) return;
@@ -125,9 +131,6 @@ function simulate(actions: Action[]) {
       feed({ type: 'fill', ...record });
     };
   };
-  const fill = (cloid: string, size: number, isBuy: boolean) => {
-    bookFill(cloid, size, isBuy)();
-  };
   const restingOf = (name: string) => [...book.keys()].find((cloid) => legOf(cloid) === name);
 
   const execute = (command: BracketCommand, fate: Fate) => {
@@ -161,8 +164,10 @@ function simulate(actions: Action[]) {
           // A reduce-only IOC fills up to its own size; orderStatus reports what it filled.
           const size = round(Math.min(Math.max(position, 0), command.order.size));
           book.set(command.cloid, { size, filled: size });
-          if (size > 0) fill(command.cloid, size, true);
+          const deliver = size > 0 ? bookFill(command.cloid, size, true) : () => undefined;
+          if (!lateClose) deliver();
           finish(command.cloid, 'filled');
+          if (lateClose) deliver();
           return;
         }
         book.set(command.cloid, { size: command.order.size, filled: 0 });
@@ -246,6 +251,7 @@ function simulate(actions: Action[]) {
         break;
       }
       case 'close':
+        lateClose = a.late;
         feed({ type: 'close', px: 3100 });
         break;
       case 'sl_only':
@@ -262,7 +268,8 @@ function simulate(actions: Action[]) {
         for (const command of pending.splice(0)) if (a.land) execute(command, 'ok');
         muted = false;
         const open = [...book].map(([cloid, o]) => ({ cloid, size: round(o.size - o.filled) }));
-        feed({ type: 'snapshot', reload: true, open, fills: [...fills] });
+        // REST may not have the latest fills yet; the next snapshot does.
+        feed({ type: 'snapshot', reload: true, open, fills: fills.slice(0, fills.length - a.lag) });
         break;
       }
       case 'resync': {
