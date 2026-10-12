@@ -148,6 +148,19 @@ test('locked: a loss limit set after midnight ignores stats read the day before'
   await expect(page.getByTestId('send')).toHaveText('Locked until 00:00 UTC');
 });
 
+test('soft loss limit: reaching it warns and never refuses Send', async ({ page }) => {
+  await openTerminal(page);
+  await patchStore(page, 'account', {
+    master: MASTER,
+    stats: { trips: [], dayPnlUsd: -60, asOf: Date.now() },
+  });
+  await page.getByText('Daily rules').click();
+  await page.getByRole('textbox', { name: /Daily loss limit/ }).fill('50');
+  await page.getByRole('button', { name: 'Apply' }).click();
+  await expect(page.getByText('Soft loss limit reached')).toBeVisible();
+  await expect(page.getByTestId('send')).toHaveText('Send bracket');
+});
+
 test('first run: the hint shows once and stays dismissed', async ({ page }) => {
   const chart = await openTerminal(page);
   const hint = page.getByText('Drag the red stop line');

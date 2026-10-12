@@ -2,12 +2,10 @@
 import { ref } from 'vue';
 import { useAccountStore } from '../stores/account';
 import { useExecutionStore } from '../stores/execution';
-import { useTerminalStore } from '../stores/terminal';
 import { signedUsd, usd } from './format';
 
 const execution = useExecutionStore();
 const account = useAccountStore();
-const terminal = useTerminalStore();
 const limitText = ref(String(account.rules.rules.lossLimit?.usd ?? ''));
 const hard = ref(account.rules.rules.lossLimit?.hard ?? false);
 
@@ -35,8 +33,8 @@ function applyLimit() {
     </summary>
     <p class="num">
       Today {{ signedUsd(account.stats.dayPnlUsd) }}
-      <template v-if="terminal.account?.budgetRemainingUsd !== undefined">
-        · budget left {{ usd(terminal.account.budgetRemainingUsd) }}
+      <template v-if="account.budgetLeftUsd !== undefined">
+        · budget left {{ usd(account.budgetLeftUsd) }}
       </template>
     </p>
     <label class="check">

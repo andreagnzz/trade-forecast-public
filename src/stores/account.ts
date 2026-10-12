@@ -78,15 +78,21 @@ export const useAccountStore = defineStore('account', () => {
     return stats.value;
   }
 
-  // Live sizing reads the account limits plus what is left of today's loss budget.
+  const budgetLeftUsd = computed(() => {
+    const limit = rules.value.rules.lossLimit;
+    return limit ? budgetRemainingUsd(limit.usd, stats.value.dayPnlUsd) : undefined;
+  });
+  const softLimitReached = computed(
+    () => rules.value.rules.lossLimit?.hard === false && budgetLeftUsd.value === 0,
+  );
+
+  // Live sizing reads the account limits. Only a hard limit caps the size at what is left of
+  // today's budget; a soft one only warns.
   function pushAccount() {
     if (!limits.value) return;
-    const lossLimit = rules.value.rules.lossLimit;
     terminal.account = {
       ...limits.value,
-      budgetRemainingUsd: lossLimit
-        ? budgetRemainingUsd(lossLimit.usd, stats.value.dayPnlUsd)
-        : undefined,
+      budgetRemainingUsd: rules.value.rules.lossLimit?.hard ? budgetLeftUsd.value : undefined,
     };
   }
 
@@ -161,6 +167,8 @@ export const useAccountStore = defineStore('account', () => {
     rulesState,
     rules,
     stats,
+    budgetLeftUsd,
+    softLimitReached,
     position,
     appOrders,
     syncError,

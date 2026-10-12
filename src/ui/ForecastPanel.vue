@@ -183,6 +183,9 @@ const equityText = numberField(
     <p v-if="store.okSizing?.warnings.includes('tp_inside_expected_entry')" class="notice warn">
       Take-profit inside the worst-case fill after fees.
     </p>
+    <p v-if="account.softLimitReached" class="notice warn">
+      Soft loss limit reached. Orders still go through.
+    </p>
 
     <button
       class="send"
