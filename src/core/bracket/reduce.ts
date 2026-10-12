@@ -16,6 +16,8 @@ const MAX_ATTEMPTS = 5;
 
 type OrderEvent = Extract<BracketEvent, { type: 'order' }>;
 
+// Every attempt that did not leave a protective leg resting counts: the next one waits longer,
+// under the next seq, and the fifth failure asks the user.
 function failed(d: Bracket, leg: 'sl' | 'tp'): BracketCommand[] {
   const state = d[leg];
   state.retries += 1;
@@ -23,7 +25,7 @@ function failed(d: Bracket, leg: 'sl' | 'tp'): BracketCommand[] {
     giveUp(d, leg);
     return [];
   }
-  state.status = 'waiting';
+  if (!replace(d, leg, 'waiting')) return [];
   return [{ type: 'retry', leg, delayMs: 250 * 2 ** (state.retries - 1) }];
 }
 
@@ -47,7 +49,6 @@ function onOrder(d: Bracket, event: OrderEvent): BracketCommand[] {
       state.status = 'live';
       if (d.attention === 'entry_unknown') d.attention = null;
     }
-    state.retries = 0;
   }
   // Any status on the new cloid means the modify landed: the order it replaced is gone.
   if (leg === 'tp') d.tp.prev = null;
@@ -63,10 +64,7 @@ function onOrder(d: Bracket, event: OrderEvent): BracketCommand[] {
       else if (d.filledSz === 0) d.cancelling ??= 'no_fill';
       return [];
     case 'sl':
-      if (event.status === 'canceled') {
-        if (!ours) replace(d, 'sl');
-        return [];
-      }
+      if (event.status === 'canceled') return ours ? [] : failed(d, 'sl');
       // A stop that fires before any fill means the setup is gone: stop working the entry.
       if (d.filledSz === 0) d.cancelling ??= 'no_fill';
       // HL announces a fired stop before its fills. With size 0 it closes the whole position;
@@ -75,7 +73,7 @@ function onOrder(d: Bracket, event: OrderEvent): BracketCommand[] {
       if (d.sl.closedSz < d.sl.size) d.sl.status = 'filling';
       return [];
     case 'tp':
-      if (event.status === 'canceled' && !ours) replace(d, 'tp');
+      if (event.status === 'canceled') return ours ? [] : failed(d, 'tp');
       // Filled on the exchange: what we still see resting is the part whose fills are on the way.
       if (event.status === 'filled' && d.tp.size > 0) d.tp.status = 'filling';
       return [];
@@ -104,18 +102,18 @@ function onRejected(d: Bracket, cloid: string, reason: RejectReason): BracketCom
     d.attention = 'close_failed';
     return [];
   }
-  replace(d, leg, 'done');
   switch (leg) {
     case 'entry':
+      d.entry.status = 'done';
       if (d.filledSz === 0) d.cancelling ??= 'no_fill';
       return [];
     case 'sl':
       if (d.entry.status !== 'idle') return failed(d, 'sl');
-      d.cancelling ??= 'sl_rejected';
+      giveUp(d, 'sl');
       return [];
     case 'tp':
       if (reason === 'other') return failed(d, 'tp');
-      d.tp.status = 'idle';
+      replace(d, 'tp');
       d.attention = TP_ATTENTION[reason];
       return [];
   }
@@ -145,7 +143,6 @@ function onUnknown(d: Bracket, cloid: string): BracketCommand[] {
   }
   // Counted as a failure so an order that keeps not reaching the exchange backs off and stops.
   // If the lost request lands after all, its old seq shows up as stale and gets cancelled.
-  state.seq += 1;
   return failed(d, leg);
 }
 

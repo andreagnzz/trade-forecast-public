@@ -15,19 +15,31 @@ export function currentLeg(d: Bracket, cloid: string): LegName | null {
   return d[parsed.leg].seq === parsed.seq ? parsed.leg : null;
 }
 
+type ExitLeg = 'sl' | 'tp' | 'close';
+
+const FAILED = { sl: 'sl_failed', tp: 'tp_failed', close: 'close_failed' } as const;
+
+// A cloid holds the seq in one byte.
+export const seqLeft = (d: Bracket, leg: ExitLeg) => d[leg].seq < 255;
+
+// Before the entry is sent nothing is exposed, so a stop that cannot be placed ends the bracket.
+export function giveUp(d: Bracket, leg: ExitLeg) {
+  d[leg].status = 'done';
+  if (leg === 'sl' && d.entry.status === 'idle') d.cancelling ??= 'sl_rejected';
+  else d.attention = FAILED[leg];
+}
+
 // HL does not deduplicate cloids, so a sent cloid is never sent again: the next order of a
-// leg always takes the next seq.
-export function replace(d: Bracket, leg: LegName, status: 'idle' | 'done' = 'idle') {
+// leg always takes the next seq, and a leg that has used them all gives up.
+export function replace(d: Bracket, leg: ExitLeg, status: 'idle' | 'waiting' = 'idle') {
+  if (!seqLeft(d, leg)) {
+    giveUp(d, leg);
+    return false;
+  }
   d[leg].seq += 1;
   d[leg].status = status;
   if (leg === 'sl') d.sl.closedSz = 0;
-}
-
-// Before the entry is sent nothing is exposed, so a stop that cannot be placed ends the bracket.
-export function giveUp(d: Bracket, leg: 'sl' | 'tp') {
-  d[leg].status = 'done';
-  if (leg === 'sl' && d.entry.status === 'idle') d.cancelling ??= 'sl_rejected';
-  else d.attention = leg === 'sl' ? 'sl_failed' : 'tp_failed';
+  return true;
 }
 
 // A modify that did not land leaves the previous take-profit resting: track it again.

@@ -12,7 +12,7 @@ import {
   type BracketCommand,
 } from './bracket';
 import type { LegName } from './cloid';
-import { replace } from './legs';
+import { replace, seqLeft } from './legs';
 
 function cancelLive(d: Bracket, legs: readonly LegName[]): BracketCommand[] {
   const commands: BracketCommand[] = [];
@@ -80,6 +80,11 @@ function takeProfit(d: Bracket): BracketCommand[] {
   }
   const resize = tp.size !== size || tp.sentPx !== tp.px;
   if (tp.status !== 'live' || tp.prev || !resize) return [];
+  // Out of seqs: the take-profit keeps resting as it is, and the user picks what comes next.
+  if (!seqLeft(d, 'tp')) {
+    d.attention = 'tp_failed';
+    return [];
+  }
   const cloid = legCloid(d, 'tp');
   Object.assign(tp, {
     prev: { seq: tp.seq, size: tp.size, px: tp.sentPx },

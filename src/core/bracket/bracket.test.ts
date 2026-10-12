@@ -418,6 +418,17 @@ describe('take-profit rejected', () => {
     expect(state.tp).toMatchObject({ seq: 0, size: 0.001, status: 'live' });
   });
 
+  it('stops resizing and asks the user once the take-profit has used every seq', () => {
+    let state = run(working(), buy(0.0002), order(c('tp'), 'open')).state;
+    for (let lot = 0; lot < 280; lot++) {
+      state = run(state, buy(0.00001)).state;
+      if (state.tp.status === 'sending')
+        state = run(state, order(c('tp', state.tp.seq), 'open')).state;
+    }
+    expect(state.attention).toBe('tp_failed');
+    expect(state.tp.status).toBe('live');
+  });
+
   it('treats a resize of a take-profit HL already pulled as gone, not as a failure', () => {
     const shrinking = run(filled(), sell(0.001)).state;
     expect(shrinking.tp.prev).not.toBeNull();
@@ -583,27 +594,45 @@ describe('close and OCO cleanup', () => {
 describe('stop lost mid-bracket', () => {
   const exposed = () => run(working(), buy(0.003), order(c('entry'), 'filled', 0.003)).state;
 
-  it('places the stop again under the next seq and flags the gap', () => {
-    const { state, commands } = run(exposed(), order(c('sl'), 'canceled'));
-    expect(commands).toEqual([
+  it('flags the gap and places the stop again under the next seq after a backoff', () => {
+    const lost = run(exposed(), order(c('sl'), 'canceled'));
+    expect(lost.commands).toEqual([{ type: 'retry', leg: 'sl', delayMs: 250 }]);
+    expect(isUnprotected(lost.state)).toBe(true);
+    expect(run(lost.state, { type: 'retry_due', leg: 'sl' }).commands).toEqual([
       {
         type: 'place',
         cloid: c('sl', 1),
         order: { isBuy: false, px: 79_000, size: 0, reduceOnly: true, type: 'stop_market' },
       },
     ]);
-    expect(isUnprotected(state)).toBe(true);
   });
 
-  it('backs off 250 ms to 2 s, then asks the user after five failures', () => {
-    let state = run(exposed(), order(c('sl'), 'canceled')).state;
+  it('counts each external cancel of the stop, then asks the user after five', () => {
+    let state = exposed();
     const delays: number[] = [];
-    for (let seq = 1; seq <= 5; seq++) {
-      const step = run(state, rejected(c('sl', seq)), { type: 'retry_due', leg: 'sl' });
+    for (let seq = 0; seq < 5; seq++) {
+      const step = run(
+        state,
+        order(c('sl', seq), 'canceled'),
+        { type: 'retry_due', leg: 'sl' },
+        order(c('sl', seq + 1), 'open'),
+      );
       for (const cmd of step.commands) if (cmd.type === 'retry') delays.push(cmd.delayMs);
       state = step.state;
     }
     expect(delays).toEqual([250, 500, 1000, 2000]);
+    expect(state.attention).toBe('sl_failed');
+  });
+
+  it('backs off 250 ms to 2 s, then asks the user after five failures', () => {
+    let state = run(exposed(), rejected(c('sl')), { type: 'retry_due', leg: 'sl' }).state;
+    const delays: number[] = [];
+    for (let seq = 1; seq <= 4; seq++) {
+      const step = run(state, rejected(c('sl', seq)), { type: 'retry_due', leg: 'sl' });
+      for (const cmd of step.commands) if (cmd.type === 'retry') delays.push(cmd.delayMs);
+      state = step.state;
+    }
+    expect(delays).toEqual([500, 1000, 2000]);
     expect(state.attention).toBe('sl_failed');
     expect(isUnprotected(state)).toBe(true);
   });
@@ -633,13 +662,14 @@ describe('stop lost mid-bracket', () => {
     const lost = run(
       filled(),
       order(c('sl'), 'canceled'),
+      { type: 'retry_due', leg: 'sl' },
       { type: 'uncertain', cloid: c('sl', 1) },
       {
         type: 'unknown',
         cloid: c('sl', 1),
       },
     );
-    expect(lost.commands.at(-1)).toEqual({ type: 'retry', leg: 'sl', delayMs: 250 });
+    expect(lost.commands.at(-1)).toEqual({ type: 'retry', leg: 'sl', delayMs: 500 });
     const retried = run(lost.state, { type: 'retry_due', leg: 'sl' });
     expect(retried.commands).toContainEqual(
       expect.objectContaining({ type: 'place', cloid: c('sl', 2) }),

@@ -25,7 +25,7 @@ export function applyChoice(d: Bracket, event: UserEvent): BracketCommand[] {
     case 'close': {
       const order = exitOrder(d, event.px, 'ioc');
       if (!validPx(event.px) || order.size <= 0 || d.close.status === 'sending') return [];
-      if (d.close.status === 'done') replace(d, 'close');
+      if (d.close.status === 'done' && !replace(d, 'close')) return [];
       d.close.status = 'sending';
       if (d.attention !== 'sl_failed') d.attention = null;
       return [{ type: 'place', cloid: legCloid(d, 'close'), order }];
