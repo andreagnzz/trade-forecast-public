@@ -1,15 +1,8 @@
-import {
-  HttpTransport,
-  InfoClient,
-  SubscriptionClient,
-  WebSocketTransport,
-} from '@nktkas/hyperliquid';
+import { SubscriptionClient, WebSocketTransport } from '@nktkas/hyperliquid';
 import { isCloid, type Cloid } from '../core/bracket/cloid';
 import type { Fill } from '../core/budget';
+import { info } from './exchange';
 import { parseNumber } from './format';
-
-// Read-only user data, on the same network as execution.
-const info = new InfoClient({ transport: new HttpTransport({ isTestnet: true }) });
 
 export type Address = `0x${string}`;
 

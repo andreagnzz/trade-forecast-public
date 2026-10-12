@@ -22,7 +22,7 @@ import {
 
 // Orders only ever reach testnet: no setting or env var selects this network.
 const transport = new HttpTransport({ isTestnet: true });
-const info = new InfoClient({ transport });
+export const info = new InfoClient({ transport });
 
 export function assertTestnet(): void {
   if (!transport.isTestnet) throw new Error('refusing: execution transport is not testnet');
