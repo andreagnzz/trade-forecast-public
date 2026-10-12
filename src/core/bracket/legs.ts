@@ -59,6 +59,9 @@ export function revertTp(d: Bracket) {
 export function applyFill(d: Bracket, fill: BracketFill) {
   if (d.tids.includes(fill.tid)) return;
   d.tids.push(fill.tid);
+  // Failures count toward giving up only while the position stays the same.
+  d.sl.retries = 0;
+  d.tp.retries = 0;
   d.pnlUsd += fill.closedPnl - fill.fee;
   if (fill.isBuy === exitIsBuy(d)) {
     d.exitedSz = roundSize(d, d.exitedSz + fill.size);

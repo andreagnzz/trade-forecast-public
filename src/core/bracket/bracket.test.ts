@@ -694,6 +694,20 @@ describe('stop lost mid-bracket', () => {
     expect(state.attention).toBe('sl_failed');
   });
 
+  it('starts counting again after a fill, so earlier glitches never strand a later stop', () => {
+    let state = exposed();
+    for (let seq = 0; seq < 4; seq++) {
+      state = run(
+        state,
+        order(c('sl', seq), 'canceled'),
+        { type: 'retry_due', leg: 'sl' },
+        order(c('sl', seq + 1), 'open'),
+      ).state;
+    }
+    const { commands } = run(state, sell(0.001), order(c('sl', 4), 'canceled'));
+    expect(commands).toContainEqual({ type: 'retry', leg: 'sl', delayMs: 250 });
+  });
+
   it('backs off 250 ms to 2 s, then asks the user after five failures', () => {
     let state = run(exposed(), rejected(c('sl')), { type: 'retry_due', leg: 'sl' }).state;
     const delays: number[] = [];
