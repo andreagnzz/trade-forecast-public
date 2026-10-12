@@ -87,7 +87,7 @@ const timing = (session: Session) => ({
 });
 
 export const scenarios: Record<string, () => Promise<Omit<Run, 'scenario' | 'ok'>>> = {
-  async a() {
+  async marketBracket() {
     const { session } = await protectedMarketBracket();
     await waitPhase(session, 'protected');
     const { tp, filledSz } = session.view().bracket ?? noBracket();
@@ -99,7 +99,7 @@ export const scenarios: Record<string, () => Promise<Omit<Run, 'scenario' | 'ok'
     return { note: `filled ${String(filledSz)}`, ...times };
   },
 
-  async c() {
+  async crossingTp() {
     const m = await market(COIN);
     const { session } = await protectedMarketBracket({ tpPx: m.px(m.bid * 0.999) });
     await waitFor('tp_would_cross', () => session.view().bracket?.attention === 'tp_would_cross');
@@ -111,7 +111,7 @@ export const scenarios: Record<string, () => Promise<Omit<Run, 'scenario' | 'ok'
     return { note: error ?? '' };
   },
 
-  async d() {
+  async outsideClose() {
     const { session, plan } = await protectedMarketBracket();
     await waitPhase(session, 'protected');
     const outside = makeCloid(E2E_PREFIX, randomBracketId(), 'close', 0);
@@ -133,7 +133,7 @@ export const scenarios: Record<string, () => Promise<Omit<Run, 'scenario' | 'ok'
     return { note: `closed outside the bracket, legs of ${plan.id.slice(0, 6)} cancelled` };
   },
 
-  async e() {
+  async reload() {
     const { session, plan } = await protectedMarketBracket();
     await waitPhase(session, 'protected');
     const before = (await appOrders(plan.id)).map((o) => o.cloid).sort();
@@ -157,7 +157,7 @@ export const scenarios: Record<string, () => Promise<Omit<Run, 'scenario' | 'ok'
     };
   },
 
-  async f() {
+  async oneBullet() {
     const stats = await dayStats();
     const armed = changeRules(initialRulesState, { oneBullet: true }, Date.now());
     if (!armed.ok) throw new Error(armed.error);
@@ -186,7 +186,7 @@ export const scenarios: Record<string, () => Promise<Omit<Run, 'scenario' | 'ok'
     };
   },
 
-  async b() {
+  async partialFill() {
     const thin = await thinBook();
     const session = openSession();
     const plan = await longPlan(thin.coin, {
@@ -213,7 +213,7 @@ export const scenarios: Record<string, () => Promise<Omit<Run, 'scenario' | 'ok'
   },
 
   // A real stop a few ticks under the mark, left to the market: best effort by nature.
-  async g() {
+  async stopHit() {
     const m = await market(COIN);
     const { session } = await protectedMarketBracket({ stopPx: m.px(m.markPx * 0.9999) });
     await waitFor('stop fired', () => !!session.view().bracket?.outcome, 180_000);

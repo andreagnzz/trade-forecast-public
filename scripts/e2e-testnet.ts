@@ -5,20 +5,18 @@ import { calibrate } from './e2e/calibrate';
 import { COIN, flatten, median } from './e2e/harness';
 import { scenarios, type Run } from './e2e/scenarios';
 
-// a market bracket, b partial limit fill, c crossing take-profit, d close outside the app,
-// e reload, f one-bullet refusal, g stop hit by the market.
 const DEFAULT_RUNS: [string, number][] = [
-  ['a', 10],
-  ['c', 10],
-  ['d', 10],
-  ['e', 10],
-  ['f', 10],
-  ['b', 4],
-  ['g', 4],
+  ['marketBracket', 10],
+  ['crossingTp', 10],
+  ['outsideClose', 10],
+  ['reload', 10],
+  ['oneBullet', 10],
+  ['partialFill', 4],
+  ['stopHit', 4],
 ];
 
-// `pnpm e2e:testnet a:1 c:2` runs a subset, `calibrate` re-measures closedPnl; no argument
-// runs the full set.
+// `pnpm e2e:testnet marketBracket:1 crossingTp:2` runs a subset, `calibrate` re-measures
+// closedPnl; no argument runs the full set.
 const args = process.argv.slice(2);
 if (args.includes('calibrate')) await calibrate();
 const requested = args
@@ -63,9 +61,9 @@ for (const [scenario, count] of PLAN) {
 
 const passed = (s: string) => runs.filter((r) => r.scenario === s && r.ok).length;
 const timed = runs.filter((r) => r.ok && r.slAheadOfFillMs !== undefined);
-console.log('\nscenario  passed');
+console.log(`\n${'scenario'.padEnd(16)}passed`);
 for (const [scenario, count] of PLAN)
-  console.log(`${scenario}         ${String(passed(scenario))}/${String(count)}`);
+  console.log(`${scenario.padEnd(16)}${String(passed(scenario))}/${String(count)}`);
 console.log(
   `median stop live ahead of first fill: ${String(median(timed.map((r) => r.slAheadOfFillMs ?? 0)))} ms`,
 );
