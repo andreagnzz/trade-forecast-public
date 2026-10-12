@@ -73,31 +73,29 @@ function executionOrder(fills: Fill[]): Fill[] {
   return ordered;
 }
 
-// Fills must reach back to the last flat point of each coin; earlier partial history is skipped.
+// Fills should reach back to the last flat point of each coin. A round-trip opened before the
+// history starts at its first fill seen: its PnL is partial, but a losing close still counts.
 export function closedRoundTrips(fills: readonly Fill[]): RoundTrip[] {
   const open = new Map<string, { openTime: number; netPnl: number }>();
   const closed: RoundTrip[] = [];
   for (const f of executionOrder(dedupeByTid(fills))) {
-    const trip = open.get(f.coin);
+    const trip = open.get(f.coin) ?? { openTime: f.time, netPnl: 0 };
     const startAbs = Math.abs(f.startPosition);
     const reduces = f.startPosition !== 0 && (f.side === 'buy') !== f.startPosition > 0;
     if (!reduces || f.sz < startAbs) {
       const current = f.startPosition === 0 ? { openTime: f.time, netPnl: 0 } : trip;
-      if (!current) continue;
       current.netPnl += f.closedPnl - f.fee;
       open.set(f.coin, current);
       continue;
     }
     // sz and startPosition are parsed from the same decimal strings, so equality is exact.
     const closingFee = f.sz === startAbs ? f.fee : (f.fee * startAbs) / f.sz;
-    if (trip) {
-      closed.push({
-        coin: f.coin,
-        openTime: trip.openTime,
-        closeTime: f.time,
-        netPnl: trip.netPnl + f.closedPnl - closingFee,
-      });
-    }
+    closed.push({
+      coin: f.coin,
+      openTime: trip.openTime,
+      closeTime: f.time,
+      netPnl: trip.netPnl + f.closedPnl - closingFee,
+    });
     open.delete(f.coin);
     if (f.sz > startAbs) open.set(f.coin, { openTime: f.time, netPnl: closingFee - f.fee });
   }

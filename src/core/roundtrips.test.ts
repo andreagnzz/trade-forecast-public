@@ -51,14 +51,22 @@ describe('closedRoundTrips', () => {
     expect(trips).toHaveLength(1);
   });
 
-  it('ignores fills before the first flat point of an incomplete history', () => {
+  it('starts a round-trip opened before the history at its first fill seen', () => {
     const trips = closedRoundTrips([
       fill(1, 1, 1),
       fill(2, 2, -2, 50),
       fill(3, 0, -1),
       fill(4, -1, 1, 4),
     ]);
-    expect(trips).toEqual([{ coin: 'BTC', openTime: 3, closeTime: 4, netPnl: 4 }]);
+    expect(trips).toEqual([
+      { coin: 'BTC', openTime: 1, closeTime: 2, netPnl: 50 },
+      { coin: 'BTC', openTime: 3, closeTime: 4, netPnl: 4 },
+    ]);
+  });
+
+  it('counts a losing close whose opening fill is older than the history', () => {
+    const trips = closedRoundTrips([fill(5, 1, -1, -50, 1)]);
+    expect(trips).toEqual([{ coin: 'BTC', openTime: 5, closeTime: 5, netPnl: -51 }]);
   });
 
   it('tracks coins independently and sorts fills by time', () => {
