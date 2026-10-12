@@ -8,7 +8,7 @@ import {
   type Step,
 } from './bracket';
 import { applyChoice } from './choices';
-import { applyFill, currentLeg, giveUp, replace, revertTp } from './legs';
+import { alert, applyFill, currentLeg, giveUp, replace, revertTp } from './legs';
 import { reconcile } from './reconcile';
 import { settle } from './settle';
 
@@ -22,7 +22,7 @@ type OrderEvent = Extract<BracketEvent, { type: 'order' }>;
 // The exit stays announced until its fills arrive; the timer starts once, on the first event.
 function awaitFills(d: Bracket, exit: 'sl' | 'tp', wasFilling: boolean): BracketCommand[] {
   d[exit].status = 'filling';
-  return wasFilling ? [] : [{ type: 'retry', leg: exit, delayMs: FILLS_DUE_MS }];
+  return wasFilling ? [] : [{ type: 'wait_fills', leg: exit, delayMs: FILLS_DUE_MS }];
 }
 
 // Every attempt that did not leave a protective leg resting counts: the next one waits longer,
@@ -86,7 +86,7 @@ function onOrder(d: Bracket, event: OrderEvent): BracketCommand[] {
       // Filled on the exchange: what we still see resting is the part whose fills are on the way.
       return event.status === 'filled' && d.tp.size > 0 ? awaitFills(d, 'tp', wasFilling) : [];
     case 'close':
-      if (event.status === 'canceled') d.attention = 'close_failed';
+      if (event.status === 'canceled') alert(d, 'close_failed');
       return [];
   }
 }
@@ -101,7 +101,7 @@ function onRejected(d: Bracket, cloid: string, reason: RejectReason): BracketCom
     if (reason === 'order_gone') Object.assign(d.tp, { prev: null, status: 'done' });
     else {
       revertTp(d);
-      d.attention = TP_ATTENTION[reason];
+      alert(d, TP_ATTENTION[reason]);
     }
     return [];
   }
@@ -117,11 +117,11 @@ function onRejected(d: Bracket, cloid: string, reason: RejectReason): BracketCom
     case 'tp':
       if (reason === 'other') return failed(d, 'tp');
       replace(d, 'tp');
-      d.attention = TP_ATTENTION[reason];
+      alert(d, TP_ATTENTION[reason]);
       return [];
     case 'close':
       d.close.status = 'done';
-      d.attention = 'close_failed';
+      alert(d, 'close_failed');
       return [];
   }
 }
@@ -136,11 +136,11 @@ function onUnknown(d: Bracket, cloid: string): BracketCommand[] {
   switch (leg) {
     case 'entry':
       d.entry.status = 'done';
-      d.attention = 'entry_unknown';
+      alert(d, 'entry_unknown');
       return [];
     case 'close':
       d.close.status = 'done';
-      d.attention = 'close_failed';
+      alert(d, 'close_failed');
       return [];
     case 'tp':
       if (d.tp.prev) {
@@ -168,12 +168,12 @@ function apply(d: Bracket, event: BracketEvent): BracketCommand[] {
     case 'fill':
       applyFill(d, event);
       return [];
-    case 'retry_due': {
-      const state = d[event.leg];
-      if (state.status === 'waiting') state.status = 'idle';
-      else if (state.status === 'filling') state.status = 'done';
+    case 'retry_due':
+      if (d[event.leg].status === 'waiting') d[event.leg].status = 'idle';
       return [];
-    }
+    case 'fills_due':
+      if (d[event.leg].status === 'filling') d[event.leg].status = 'done';
+      return [];
     case 'snapshot':
       return reconcile(d, event);
     default:

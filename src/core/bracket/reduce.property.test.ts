@@ -132,6 +132,7 @@ function simulate(actions: Action[]) {
     if (
       (fate === 'lost' || fate === 'dropped') &&
       command.type !== 'retry' &&
+      command.type !== 'wait_fills' &&
       command.type !== 'query'
     ) {
       if (fate === 'lost') {
@@ -190,6 +191,9 @@ function simulate(actions: Action[]) {
       }
       case 'retry':
         feed({ type: 'retry_due', leg: command.leg });
+        return;
+      case 'wait_fills':
+        feed({ type: 'fills_due', leg: command.leg });
     }
   };
 

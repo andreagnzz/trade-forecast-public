@@ -154,6 +154,11 @@ export function createBracketManager(deps: BracketManagerDeps) {
         clock.setTimeout(() => {
           dispatch({ type: 'retry_due', leg: command.leg });
         }, command.delayMs);
+        return;
+      case 'wait_fills':
+        clock.setTimeout(() => {
+          dispatch({ type: 'fills_due', leg: command.leg });
+        }, command.delayMs);
     }
   }
 

@@ -433,6 +433,11 @@ describe('take-profit rejected', () => {
 
   it('stops resizing and asks the user once the take-profit has used every seq', () => {
     const live = run(working(), buy(0.001), order(c('tp'), 'open')).state;
+    const last = run({ ...live, tp: { ...live.tp, maxSeq: 254 } }, buy(0.001));
+    expect(last.commands).toEqual([
+      expect.objectContaining({ type: 'modify', next: c('tp', 255) }),
+    ]);
+    expect(last.state.tp.seq).toBe(255);
     const exhausted = { ...live, tp: { ...live.tp, maxSeq: 255 } };
     const { state, commands } = run(exhausted, buy(0.001));
     expect(commands).toEqual([]);
@@ -450,6 +455,16 @@ describe('take-profit rejected', () => {
     const placed = commands.flatMap((cmd) => (cmd.type === 'place' ? [cmd.cloid] : []));
     expect(state.tp.status).toBe('sending');
     expect(new Set(placed).size).toBe(placed.length);
+  });
+
+  it('shows a take-profit picked after five failures as pending until it can rest', () => {
+    const events: BracketEvent[] = [buy(0.00013)];
+    for (let seq = 0; seq < 5; seq++) {
+      events.push(rejected(c('tp', seq)), { type: 'retry_due', leg: 'tp' });
+    }
+    events.push({ type: 'tp_at', px: 75_000 });
+    const { state } = run(working(), ...events);
+    expect(state.tp.status).toBe('idle');
   });
 
   it('never reuses the cloid of a refused resize for the next one', () => {
@@ -542,9 +557,23 @@ describe('close and OCO cleanup', () => {
       order(c('sl'), 'filled', 0.003),
       sell(0.002, 0, c('sl')),
     );
-    expect(fired.commands).toContainEqual({ type: 'retry', leg: 'sl', delayMs: 3000 });
-    const { commands } = run(fired.state, { type: 'retry_due', leg: 'sl' });
+    expect(fired.commands).toContainEqual({ type: 'wait_fills', leg: 'sl', delayMs: 3000 });
+    const { commands } = run(fired.state, { type: 'fills_due', leg: 'sl' });
     expect(commands).toContainEqual(expect.objectContaining({ type: 'place', cloid: c('sl', 1) }));
+  });
+
+  it('never cuts a later backoff short when a fills timer fires late', () => {
+    const replaced = run(
+      filled(),
+      order(c('sl'), 'triggered'),
+      order(c('sl'), 'filled', 0.001),
+      sell(0.001, 0, c('sl')),
+      order(c('sl', 1), 'open'),
+      order(c('sl', 1), 'canceled'),
+    ).state;
+    const { state, commands } = run(replaced, { type: 'fills_due', leg: 'sl' });
+    expect(commands).toEqual([]);
+    expect(state.sl.status).toBe('waiting');
   });
 
   it('reports exposure beyond what the fired stop closes as unprotected', () => {
@@ -560,7 +589,7 @@ describe('close and OCO cleanup', () => {
 
   it('places nothing while a filled take-profit announces its exit before the fill', () => {
     const announced = run(filled(), order(c('tp'), 'filled', 0.003));
-    expect(announced.commands).toEqual([{ type: 'retry', leg: 'tp', delayMs: 3000 }]);
+    expect(announced.commands).toEqual([{ type: 'wait_fills', leg: 'tp', delayMs: 3000 }]);
     const { commands } = run(announced.state, sell(0.003, 6, c('tp')));
     expect(commands).toEqual([{ type: 'cancel', cloid: c('sl') }]);
   });
@@ -671,6 +700,25 @@ describe('stop lost mid-bracket', () => {
         order: { isBuy: false, px: 79_000, size: 0, reduceOnly: true, type: 'stop_market' },
       },
     ]);
+  });
+
+  it('keeps sl_failed, and places no stop, when another leg fails after it', () => {
+    let failedStop = filled();
+    for (let seq = 0; seq < 5; seq++) {
+      failedStop = run(
+        failedStop,
+        order(c('sl', seq), 'canceled'),
+        { type: 'retry_due', leg: 'sl' },
+        order(c('sl', seq + 1), 'open'),
+      ).state;
+    }
+    expect(failedStop.attention).toBe('sl_failed');
+    const killed = run(failedStop, { type: 'close', px: 81_000 }, order(c('close'), 'canceled'));
+    expect(killed.state.attention).toBe('sl_failed');
+    const exhausted = { ...failedStop, tp: { ...failedStop.tp, maxSeq: 255 } };
+    const resized = run(exhausted, sell(0.001));
+    expect(resized.state.attention).toBe('sl_failed');
+    expect(resized.commands).not.toContainEqual(expect.objectContaining({ type: 'place' }));
   });
 
   it('counts each external cancel of the stop, then asks the user after five', () => {

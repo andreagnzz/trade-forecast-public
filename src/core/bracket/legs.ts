@@ -1,4 +1,4 @@
-import { exitIsBuy, roundSize, type Bracket, type BracketFill } from './bracket';
+import { exitIsBuy, roundSize, type Attention, type Bracket, type BracketFill } from './bracket';
 import { parseCloid, type LegName } from './cloid';
 
 // One of this bracket's orders, whatever its seq.
@@ -29,11 +29,20 @@ export function nextSeq(d: Bracket, leg: ExitLeg) {
   return true;
 }
 
+// sl_failed holds back every automatic stop order until the trader acts: nothing replaces it.
+export function alert(d: Bracket, attention: Attention) {
+  if (d.attention !== 'sl_failed') d.attention = attention;
+}
+
+export const alertFailed = (d: Bracket, leg: ExitLeg) => {
+  alert(d, FAILED[leg]);
+};
+
 // Before the entry is sent nothing is exposed, so a stop that cannot be placed ends the bracket.
 export function giveUp(d: Bracket, leg: ExitLeg) {
   d[leg].status = 'done';
   if (leg === 'sl' && d.entry.status === 'idle') d.cancelling ??= 'sl_rejected';
-  else d.attention = FAILED[leg];
+  else alertFailed(d, leg);
 }
 
 // A leg that has used every seq gives up.

@@ -91,7 +91,7 @@ export type BracketEvent =
   | { type: 'rejected'; cloid: string; reason: RejectReason }
   | { type: 'uncertain' | 'unknown'; cloid: string }
   | ({ type: 'fill' } & BracketFill)
-  | { type: 'retry_due'; leg: 'sl' | 'tp' }
+  | { type: 'retry_due' | 'fills_due'; leg: 'sl' | 'tp' }
   | { type: 'snapshot'; open: { cloid: string; size: number }[]; fills: BracketFill[] }
   | { type: 'cancel_entry' | 'sl_only' | 'dismiss' }
   | { type: 'close' | 'tp_at'; px: number };
@@ -101,7 +101,8 @@ export type BracketCommand =
   | { type: 'modify'; cloid: Cloid; next: Cloid; order: OrderSpec }
   | { type: 'cancel'; cloid: Cloid }
   | { type: 'query'; cloid: Cloid }
-  | { type: 'retry'; leg: 'sl' | 'tp'; delayMs: number };
+  | { type: 'retry'; leg: 'sl' | 'tp'; delayMs: number }
+  | { type: 'wait_fills'; leg: 'sl' | 'tp'; delayMs: number };
 
 export interface Step {
   state: Bracket;
