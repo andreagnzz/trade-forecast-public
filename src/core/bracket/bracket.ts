@@ -203,8 +203,11 @@ export function phase(b: Bracket): Phase {
 export const stopCrossed = (plan: BracketPlan, markPx: number) =>
   plan.side === 'long' ? markPx <= plan.stopPx : markPx >= plan.stopPx;
 
-// A fired stop is closing the position: that is not a gap.
+// A fired stop covers what it is closing; a fill that came after the trigger is not covered.
+const firing = (b: Bracket) =>
+  b.sl.status === 'filling' && openSize(b) <= roundSize(b, b.sl.size - b.sl.closedSz);
+
 export const isUnprotected = (b: Bracket) =>
-  openSize(b) > 0 && b.sl.status !== 'live' && b.sl.status !== 'filling';
+  openSize(b) > 0 && b.sl.status !== 'live' && !firing(b);
 
 export const rMultiple = (b: Bracket) => b.pnlUsd / b.plan.riskUsd;

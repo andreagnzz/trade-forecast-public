@@ -493,7 +493,7 @@ describe('close and OCO cleanup', () => {
       sell(0.003, -3.2),
       order(c('sl'), 'filled', 0.003),
     );
-    expect(fired.commands).toEqual([{ type: 'cancel', cloid: c('tp') }]);
+    expect(cancels(fired.commands)).toEqual([{ type: 'cancel', cloid: c('tp') }]);
     const { state } = run(fired.state, order(c('tp'), 'canceled'));
     expect(state.outcome).toEqual({ kind: 'closed' });
     expect(rMultiple(state)).toBeCloseTo(-3.2 / 3.5);
@@ -537,9 +537,32 @@ describe('close and OCO cleanup', () => {
     );
   });
 
+  it('stops waiting for fills of a fired stop that never come, and protects what is left', () => {
+    const fired = run(
+      filled(),
+      order(c('sl'), 'triggered'),
+      order(c('sl'), 'filled', 0.003),
+      sell(0.002, 0, c('sl')),
+    );
+    expect(fired.commands).toContainEqual({ type: 'retry', leg: 'sl', delayMs: 3000 });
+    const { commands } = run(fired.state, { type: 'retry_due', leg: 'sl' });
+    expect(commands).toContainEqual(expect.objectContaining({ type: 'place', cloid: c('sl', 1) }));
+  });
+
+  it('reports exposure beyond what the fired stop closes as unprotected', () => {
+    const { state } = run(
+      resting(),
+      buy(0.001),
+      order(c('tp'), 'open'),
+      order(c('sl'), 'triggered'),
+      buy(0.002),
+    );
+    expect(isUnprotected(state)).toBe(true);
+  });
+
   it('places nothing while a filled take-profit announces its exit before the fill', () => {
     const announced = run(filled(), order(c('tp'), 'filled', 0.003));
-    expect(announced.commands).toEqual([]);
+    expect(announced.commands).toEqual([{ type: 'retry', leg: 'tp', delayMs: 3000 }]);
     const { commands } = run(announced.state, sell(0.003, 6, c('tp')));
     expect(commands).toEqual([{ type: 'cancel', cloid: c('sl') }]);
   });

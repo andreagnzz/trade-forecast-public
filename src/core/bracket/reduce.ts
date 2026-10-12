@@ -13,6 +13,9 @@ import { reconcile } from './reconcile';
 import { settle } from './settle';
 
 const MAX_ATTEMPTS = 5;
+// A fired exit's fills normally follow within a second. Past this, the bracket stops waiting and
+// protects the position it sees: a duplicate stop is cancelled when flat, a missing one is naked.
+const FILLS_DUE_MS = 3000;
 
 type OrderEvent = Extract<BracketEvent, { type: 'order' }>;
 
@@ -54,7 +57,12 @@ function onOrder(d: Bracket, event: OrderEvent): BracketCommand[] {
   if (leg === 'tp') d.tp.prev = null;
   if (event.status === 'open') return [];
   const ours = state.status === 'canceling';
+  const waitingFills = state.status === 'filling';
   state.status = 'done';
+  const awaitFills = (exit: 'sl' | 'tp'): BracketCommand[] => {
+    d[exit].status = 'filling';
+    return waitingFills ? [] : [{ type: 'retry', leg: exit, delayMs: FILLS_DUE_MS }];
+  };
   switch (leg) {
     case 'entry':
       // The IOC response can beat its fill, so the order's own filled size decides.
@@ -70,13 +78,11 @@ function onOrder(d: Bracket, event: OrderEvent): BracketCommand[] {
       // HL announces a fired stop before its fills. With size 0 it closes the whole position;
       // its filled update then gives the exact size it closed.
       d.sl.size = event.status === 'filled' ? event.filledSz : d.sl.closedSz + openSize(d);
-      if (d.sl.closedSz < d.sl.size) d.sl.status = 'filling';
-      return [];
+      return d.sl.closedSz < d.sl.size ? awaitFills('sl') : [];
     case 'tp':
       if (event.status === 'canceled') return ours ? [] : failed(d, 'tp');
       // Filled on the exchange: what we still see resting is the part whose fills are on the way.
-      if (event.status === 'filled' && d.tp.size > 0) d.tp.status = 'filling';
-      return [];
+      return event.status === 'filled' && d.tp.size > 0 ? awaitFills('tp') : [];
     case 'close':
       if (event.status === 'canceled') d.attention = 'close_failed';
       return [];
@@ -161,9 +167,12 @@ function apply(d: Bracket, event: BracketEvent): BracketCommand[] {
     case 'fill':
       applyFill(d, event);
       return [];
-    case 'retry_due':
-      if (d[event.leg].status === 'waiting') d[event.leg].status = 'idle';
+    case 'retry_due': {
+      const state = d[event.leg];
+      if (state.status === 'waiting') state.status = 'idle';
+      else if (state.status === 'filling') state.status = 'done';
       return [];
+    }
     case 'snapshot':
       return reconcile(d, event);
     default:
