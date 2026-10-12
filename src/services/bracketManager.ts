@@ -266,28 +266,25 @@ export function createBracketManager(deps: BracketManagerDeps) {
     }
   }
 
-  return {
-    send,
-    load,
-    reconcile,
-    onOrderUpdate,
-    onFills,
-    choose: (event: Exclude<UserEvent, { type: 'dismiss' }>) => {
-      dispatch(event);
-    },
-    // A single unknownOid can race an order still in flight: look at the book once more first.
-    dismiss: async () => {
-      if (await reconcile()) dispatch({ type: 'dismiss' });
-    },
-    // Commands queue more commands; wait until the queue stops growing.
-    settled: async () => {
-      let current: Promise<void>;
-      do {
-        current = queue;
-        await current;
-      } while (current !== queue);
-    },
-  };
+  function choose(event: Exclude<UserEvent, { type: 'dismiss' }>) {
+    dispatch(event);
+  }
+
+  // A single unknownOid can race an order still in flight: look at the book once more first.
+  async function dismiss() {
+    if (await reconcile()) dispatch({ type: 'dismiss' });
+  }
+
+  // Commands queue more commands; wait until the queue stops growing.
+  async function settled() {
+    let current: Promise<void>;
+    do {
+      current = queue;
+      await current;
+    } while (current !== queue);
+  }
+
+  return { send, load, reconcile, onOrderUpdate, onFills, choose, dismiss, settled };
 }
 
 export type BracketManager = ReturnType<typeof createBracketManager>;

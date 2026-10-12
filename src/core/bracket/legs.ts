@@ -42,9 +42,9 @@ export function alert(d: Bracket, attention: Attention) {
   if (d.attention !== 'sl_failed') d.attention = attention;
 }
 
-export const alertFailed = (d: Bracket, leg: ExitLeg) => {
+export function alertFailed(d: Bracket, leg: ExitLeg) {
   alert(d, FAILED[leg]);
-};
+}
 
 // Before the entry is sent nothing is exposed, so a stop that cannot be placed ends the bracket.
 export function giveUp(d: Bracket, leg: ExitLeg) {

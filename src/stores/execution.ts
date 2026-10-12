@@ -314,6 +314,10 @@ export const useExecutionStore = defineStore('execution', () => {
     notice.value = account.setRules(patch) ? null : 'rejected: loss limit must be positive';
   }
 
+  const cancelEntry = () => manager?.choose({ type: 'cancel_entry' });
+  const keepStopOnly = () => manager?.choose({ type: 'sl_only' });
+  const dismiss = () => manager?.dismiss();
+
   return {
     connecting,
     keyError,
@@ -337,8 +341,8 @@ export const useExecutionStore = defineStore('execution', () => {
     closeStray,
     cancelStray,
     setRules,
-    cancelEntry: () => manager?.choose({ type: 'cancel_entry' }),
-    keepStopOnly: () => manager?.choose({ type: 'sl_only' }),
-    dismiss: () => manager?.dismiss(),
+    cancelEntry,
+    keepStopOnly,
+    dismiss,
   };
 });
