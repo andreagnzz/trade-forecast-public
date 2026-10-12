@@ -69,7 +69,7 @@ export const useExecutionStore = defineStore('execution', () => {
   );
   // Exposure on the coin that no local bracket tracks: cleared storage or another browser.
   const stray = computed(
-    () => !active.value && ((account.position?.size ?? 0) > 0 || strayOrders.value.length > 0),
+    () => !active.value && ((account.position?.sz ?? 0) > 0 || strayOrders.value.length > 0),
   );
   // The panel only mirrors these gates; OrderService and BracketManager enforce them again.
   const blocker = computed(() => {
@@ -272,14 +272,14 @@ export const useExecutionStore = defineStore('execution', () => {
 
   async function closeStray() {
     const position = account.position;
-    if (!position || position.size === 0) return;
+    if (!position || position.sz === 0) return;
     const isBuy = !position.isLong;
     const px = marketExitPx(isBuy);
     if (!px) return;
     await runStray({
       type: 'place',
       cloid: makeCloid(APP_PREFIX, randomBracketId(), 'close', 0),
-      order: { isBuy, px, size: position.size, reduceOnly: true, type: 'ioc' },
+      order: { isBuy, px, size: position.sz, reduceOnly: true, type: 'ioc' },
     });
   }
 

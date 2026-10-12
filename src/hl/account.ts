@@ -21,12 +21,12 @@ export interface AccountFill extends Fill {
 export interface AccountOrder {
   coin: string;
   cloid: Cloid | null;
-  size: number;
+  sz: number;
   reduceOnly: boolean;
 }
 
 export interface Position {
-  size: number;
+  sz: number;
   isLong: boolean;
   unrealizedPnl: number;
   time: number;
@@ -74,7 +74,7 @@ function toPosition(
   const position = state.assetPositions.find((p) => p.position.coin === coin)?.position;
   const szi = parseNumber(position?.szi ?? '0');
   return {
-    size: Math.abs(szi),
+    sz: Math.abs(szi),
     isLong: szi > 0,
     unrealizedPnl: parseNumber(position?.unrealizedPnl ?? '0'),
     time: state.time,
@@ -86,7 +86,7 @@ export async function loadOpenOrders(master: Address): Promise<AccountOrder[]> {
   return orders.map((o) => ({
     coin: o.coin,
     cloid: o.cloid && isCloid(o.cloid) ? o.cloid : null,
-    size: parseNumber(o.sz),
+    sz: parseNumber(o.sz),
     reduceOnly: o.reduceOnly,
   }));
 }

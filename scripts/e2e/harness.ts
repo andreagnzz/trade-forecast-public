@@ -189,12 +189,12 @@ export async function flatten(coin: string) {
     }
   }
   const position = await reads.position(coin);
-  if (position.size === 0) return;
+  if (position.sz === 0) return;
   const isBuy = !position.isLong;
   const order: OrderSpec = {
     isBuy,
     px: await closePx(coin, isBuy),
-    size: position.size,
+    size: position.sz,
     reduceOnly: true,
     type: 'ioc',
   };

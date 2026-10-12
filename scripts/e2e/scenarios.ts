@@ -41,7 +41,7 @@ async function closeAndCheck(session: Session, coin: string) {
   const left = await appOrders(bracket.plan.id);
   const position = await reads.position(coin);
   if (left.length > 0) throw new Error(`legs left: ${String(left.length)}`);
-  if (position.size !== 0) throw new Error(`position left: ${String(position.size)}`);
+  if (position.sz !== 0) throw new Error(`position left: ${String(position.sz)}`);
 }
 
 const send = async (session: Session, plan: BracketPlan) =>

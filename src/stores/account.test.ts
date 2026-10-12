@@ -81,7 +81,7 @@ describe('account store', () => {
     const e2e = makeCloid('7465', BRACKET_ID, 'entry', 0);
     vi.mocked(loadDayStats).mockResolvedValue(flatDay);
     vi.mocked(loadOpenOrders).mockResolvedValueOnce(
-      [app, e2e].map((cloid) => ({ coin: 'BTC', cloid, size: 0.01, reduceOnly: false })),
+      [app, e2e].map((cloid) => ({ coin: 'BTC', cloid, sz: 0.01, reduceOnly: false })),
     );
 
     account.refresh();

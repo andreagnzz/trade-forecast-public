@@ -102,7 +102,7 @@ function setup(
       fills: () => Promise.resolve(exchange.fills),
       position: () =>
         Promise.resolve({
-          size: exchange.positionSz,
+          sz: exchange.positionSz,
           isLong: true,
           unrealizedPnl: 0,
           time: NOW,
@@ -156,7 +156,7 @@ describe('BracketManager', () => {
     exchange.positionSz = 0.01;
     expect(await manager.send(PLAN, MARK)).toBe('coin_busy');
     exchange.positionSz = 0;
-    exchange.open = [{ coin: 'BTC', cloid: null, size: 1, reduceOnly: false }];
+    exchange.open = [{ coin: 'BTC', cloid: null, sz: 1, reduceOnly: false }];
     expect(await manager.send(PLAN, MARK)).toBe('coin_busy');
     expect(exchange.calls).toEqual([]);
   });
@@ -230,7 +230,7 @@ describe('BracketManager', () => {
     const exchange: Exchange = {
       ...first.exchange,
       calls: [],
-      open: [{ coin: 'BTC', cloid: c('sl'), size: 0, reduceOnly: true }],
+      open: [{ coin: 'BTC', cloid: c('sl'), sz: 0, reduceOnly: true }],
       fills: [entryFill(7, 0.003)],
     };
     const reloaded = setup({ storage: first.storage, exchange });

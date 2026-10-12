@@ -69,7 +69,7 @@ describe('connect', () => {
     const execution = useExecutionStore();
     expect(await execution.connect('0xkey', false)).toBe(false);
     feed?.onConnection(true);
-    feed?.onPosition({ size: 1, isLong: true, unrealizedPnl: 0, time: 0 });
+    feed?.onPosition({ sz: 1, isLong: true, unrealizedPnl: 0, time: 0 });
 
     expect(closeFeed).toHaveBeenCalledOnce();
     expect(reconcile).not.toHaveBeenCalled();

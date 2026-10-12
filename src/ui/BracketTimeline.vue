@@ -142,7 +142,7 @@ const tpChoices = computed(() => isTpAttention(execution.bracket?.attention ?? n
       </span>
       <span class="choices">
         <button
-          v-if="(account.position?.size ?? 0) > 0"
+          v-if="(account.position?.sz ?? 0) > 0"
           :disabled="execution.strayBusy"
           @click="execution.closeStray()"
         >
@@ -154,7 +154,7 @@ const tpChoices = computed(() => isTpAttention(execution.bracket?.attention ?? n
           :disabled="execution.strayBusy"
           @click="execution.cancelStray(order.cloid)"
         >
-          Cancel {{ order.reduceOnly ? 'reduce-only order' : 'order' }} {{ order.size }}
+          Cancel {{ order.reduceOnly ? 'reduce-only order' : 'order' }} {{ order.sz }}
         </button>
       </span>
     </div>

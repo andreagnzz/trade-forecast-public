@@ -178,7 +178,7 @@ export function createBracketManager(deps: BracketManagerDeps) {
 
   async function start(plan: BracketPlan): Promise<SendRefusal | null> {
     const [open, position] = await Promise.all([reads.openOrders(), reads.position(plan.coin)]);
-    if (position.size > 0 || open.some((o) => o.coin === plan.coin)) return 'coin_busy';
+    if (position.sz > 0 || open.some((o) => o.coin === plan.coin)) return 'coin_busy';
     const verdict = await orders.check({ kind: 'place', reduceOnly: false });
     if (!verdict) return 'stats_unavailable';
     if (verdict.verdict === 'block') return 'blocked';
@@ -210,7 +210,7 @@ export function createBracketManager(deps: BracketManagerDeps) {
     dispatch({
       type: 'snapshot',
       open: open.flatMap((o) =>
-        o.coin === coin && o.cloid ? [{ cloid: o.cloid, size: o.size }] : [],
+        o.coin === coin && o.cloid ? [{ cloid: o.cloid, size: o.sz }] : [],
       ),
       fills: fills.filter((f) => f.coin === coin && f.time > since).map(toBracketFill),
     });
