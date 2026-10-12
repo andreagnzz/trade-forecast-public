@@ -91,7 +91,8 @@ export async function loadAsks(coin: string, network: Network, depth: number) {
 }
 
 // The SDK socket reconnects and resubscribes on its own; we only surface its state. The
-// returned close stops a network's feed when the terminal switches to the other one.
+// returned close stops a network's feed when the terminal switches to the other one. A failed
+// subscribe closes the socket here, so no handler outlives the error.
 export async function subscribeMarket(
   coin: string,
   network: Network,
@@ -105,17 +106,22 @@ export async function subscribeMarket(
     handlers.onConnection(false);
   });
   const subscriptions = new SubscriptionClient({ transport });
-  await Promise.all([
-    subscriptions.candle({ coin, interval: CANDLE_INTERVAL }, (event) => {
-      handlers.onCandle(toCandle(event));
-    }),
-    subscriptions.bbo({ coin }, ({ bbo: [bid, ask] }) => {
-      if (bid && ask) handlers.onQuote({ bid: parseNumber(bid.px), ask: parseNumber(ask.px) });
-    }),
-    subscriptions.activeAssetCtx({ coin }, ({ ctx }) => {
-      handlers.onMark(parseNumber(ctx.markPx));
-    }),
-  ]);
+  try {
+    await Promise.all([
+      subscriptions.candle({ coin, interval: CANDLE_INTERVAL }, (event) => {
+        handlers.onCandle(toCandle(event));
+      }),
+      subscriptions.bbo({ coin }, ({ bbo: [bid, ask] }) => {
+        if (bid && ask) handlers.onQuote({ bid: parseNumber(bid.px), ask: parseNumber(ask.px) });
+      }),
+      subscriptions.activeAssetCtx({ coin }, ({ ctx }) => {
+        handlers.onMark(parseNumber(ctx.markPx));
+      }),
+    ]);
+  } catch (error) {
+    transport.close();
+    throw error;
+  }
   handlers.onConnection(true);
   return () => {
     transport.close();
