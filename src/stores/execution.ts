@@ -79,11 +79,11 @@ export const useExecutionStore = defineStore('execution', () => {
   const stray = computed(
     () => !active.value && ((account.position?.sz ?? 0) > 0 || strays.value.length > 0),
   );
-  // A resting entry would add exposure after the lock: stop working it. A no-op unless it rests.
+  // A resting entry would add exposure after the lock, whether it rested first or landed later.
   watch(
-    () => account.rules.lock !== null,
-    (locked) => {
-      if (locked) manager?.choose({ type: 'cancel_entry' });
+    () => account.rules.lock !== null && bracket.value?.entry.status === 'live',
+    (lockedWithEntry) => {
+      if (lockedWithEntry) manager?.choose({ type: 'cancel_entry' });
     },
   );
   // The panel only mirrors these gates; OrderService and BracketManager enforce them again.

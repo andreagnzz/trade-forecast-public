@@ -1,7 +1,9 @@
 import { createPinia, setActivePinia } from 'pinia';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { nextTick } from 'vue';
+import type { Bracket } from '../core/bracket/bracket';
 import { APP_PREFIX, makeCloid } from '../core/bracket/cloid';
+import { resting, working } from '../core/bracket/fixtures';
 import { initialRulesState } from '../core/rules';
 import { subscribeAccount } from '../hl/account';
 import { connectAgent, type ExecutionClient } from '../hl/exchange';
@@ -69,33 +71,63 @@ describe('strayOrders', () => {
 });
 
 describe('daily lock', () => {
-  it('cancels the resting entry when a lock latches mid-bracket', async () => {
-    vi.useFakeTimers();
+  async function connectWithBracket() {
     setActivePinia(createPinia());
     vi.stubGlobal('localStorage', { getItem: () => null, setItem: () => undefined });
     vi.stubGlobal('sessionStorage', { removeItem: () => undefined });
     vi.stubGlobal('document', { addEventListener: () => undefined });
     vi.stubGlobal('window', { addEventListener: () => undefined });
     const choose = vi.fn();
-    vi.mocked(createBracketManager).mockReturnValue({
-      load: () => Promise.resolve(),
-      reconcile: vi.fn(),
-      choose,
-    } as unknown as BracketManager);
+    let show: (bracket: Bracket) => void = () => undefined;
+    vi.mocked(createBracketManager).mockImplementation((deps) => {
+      show = (bracket) => {
+        deps.onChange({ bracket, lastError: null });
+      };
+      return {
+        load: () => Promise.resolve(),
+        reconcile: vi.fn(),
+        choose,
+      } as unknown as BracketManager;
+    });
     vi.mocked(connectAgent).mockResolvedValue({
       ok: true,
       client: { master: MASTER } as unknown as ExecutionClient,
     });
     vi.mocked(subscribeAccount).mockResolvedValue(vi.fn());
-
     expect(await useExecutionStore().connect('0xkey', false)).toBe(true);
-    const lock = { reason: 'loss_limit', until: Date.now() + 3_600_000 } as const;
-    useAccountStore().persistRules({ ...initialRulesState, lock });
-    await nextTick();
+    const latch = () => {
+      const lock = { reason: 'loss_limit', until: Date.now() + 3_600_000 } as const;
+      useAccountStore().persistRules({ ...initialRulesState, lock });
+    };
+    return { choose, show, latch };
+  }
 
-    expect(choose).toHaveBeenCalledWith({ type: 'cancel_entry' });
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
     vi.unstubAllGlobals();
     vi.useRealTimers();
+  });
+
+  it('cancels the resting entry when a lock latches mid-bracket', async () => {
+    const { choose, show, latch } = await connectWithBracket();
+    show(resting());
+    latch();
+    await nextTick();
+    expect(choose).toHaveBeenCalledWith({ type: 'cancel_entry' });
+  });
+
+  it('cancels an entry that comes to rest after the lock latched', async () => {
+    const { choose, show, latch } = await connectWithBracket();
+    show(working());
+    latch();
+    await nextTick();
+    expect(choose).not.toHaveBeenCalled();
+    show(resting());
+    await nextTick();
+    expect(choose).toHaveBeenCalledWith({ type: 'cancel_entry' });
   });
 });
 
