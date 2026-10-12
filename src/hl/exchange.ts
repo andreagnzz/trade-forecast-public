@@ -121,7 +121,13 @@ export async function connectAgent(
   { ok: true; client: ExecutionClient } | { ok: false; error: 'malformed_key' | 'not_agent' }
 > {
   if (!isPrivateKey(key)) return { ok: false, error: 'malformed_key' };
-  const wallet = privateKeyToAccount(key);
+  let wallet: ReturnType<typeof privateKeyToAccount>;
+  try {
+    wallet = privateKeyToAccount(key);
+  } catch {
+    // Zero or above the curve order: viem's message spells the key out in decimal.
+    return { ok: false, error: 'malformed_key' };
+  }
   const [role, meta] = await Promise.all([info.userRole({ user: wallet.address }), info.meta()]);
   if (role.role !== 'agent') return { ok: false, error: 'not_agent' };
   assertTestnet();
