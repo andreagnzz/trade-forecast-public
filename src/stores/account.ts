@@ -72,6 +72,8 @@ export const useAccountStore = defineStore('account', () => {
       },
       now,
     );
+    // Refreshes overlap: one started earlier may answer later with older numbers.
+    if (now < stats.value.asOf) return stats.value;
     stats.value = { ...day, asOf: now };
     // The lock latches on every refresh, not only before orders.
     persistRules(updateLock(rulesState.value, stats.value, now));
