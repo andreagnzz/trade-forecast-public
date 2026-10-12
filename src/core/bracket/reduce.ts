@@ -20,7 +20,11 @@ const FILLS_DUE_MS = 3000;
 type OrderEvent = Extract<BracketEvent, { type: 'order' }>;
 
 // The exit stays announced until its fills arrive; the timer starts once, on the first event.
-function awaitFills(d: Bracket, exit: 'sl' | 'tp', wasFilling: boolean): BracketCommand[] {
+function awaitFills(
+  d: Bracket,
+  exit: 'sl' | 'tp' | 'close',
+  wasFilling: boolean,
+): BracketCommand[] {
   d[exit].status = 'filling';
   return wasFilling ? [] : [{ type: 'wait_fills', leg: exit, delayMs: FILLS_DUE_MS }];
 }
@@ -91,7 +95,9 @@ function onOrder(d: Bracket, event: OrderEvent): BracketCommand[] {
       return event.status === 'filled' && d.tp.size > 0 ? awaitFills(d, 'tp', wasFilling) : [];
     case 'close':
       if (event.status === 'canceled') alert(d, 'close_failed');
-      return [];
+      // Its answer can beat its fills: until they come, the size it closed still looks open.
+      d.close.size = event.filledSz;
+      return d.close.closedSz < d.close.size ? awaitFills(d, 'close', wasFilling) : [];
   }
 }
 

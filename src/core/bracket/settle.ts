@@ -30,7 +30,8 @@ function cancelLive(d: Bracket, legs: readonly LegName[]): BracketCommand[] {
 
 // A fired exit closes part or all of the position: until its fills arrive, the open size is
 // stale and nothing is placed against it.
-const exitDue = (d: Bracket) => d.sl.status === 'filling' || d.tp.status === 'filling';
+const exitDue = (d: Bracket) =>
+  d.sl.status === 'filling' || d.tp.status === 'filling' || d.close.status === 'filling';
 
 const inFlight = (d: Bracket) =>
   LEGS.some((leg) => d[leg].status === 'sending' || d[leg].status === 'canceling');

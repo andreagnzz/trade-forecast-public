@@ -60,7 +60,7 @@ export function replace(d: Bracket, leg: ExitLeg, status: 'idle' | 'waiting' = '
     return false;
   }
   d[leg].status = status;
-  if (leg === 'sl') d.sl.closedSz = 0;
+  if (leg === 'sl' || leg === 'close') d[leg].closedSz = 0;
   return true;
 }
 
@@ -87,9 +87,10 @@ export function applyFill(d: Bracket, fill: BracketFill) {
   if (fill.isBuy === exitIsBuy(d)) {
     d.exitedSz = roundSize(d, d.exitedSz + fill.size);
     const parsed = fill.cloid === null ? null : ownLeg(d, fill.cloid);
-    if (parsed?.leg === 'sl' && parsed.seq === d.sl.seq) {
-      d.sl.closedSz = roundSize(d, d.sl.closedSz + fill.size);
-      if (d.sl.status === 'filling' && d.sl.closedSz >= d.sl.size) d.sl.status = 'done';
+    if ((parsed?.leg === 'sl' || parsed?.leg === 'close') && parsed.seq === d[parsed.leg].seq) {
+      const exit = d[parsed.leg];
+      exit.closedSz = roundSize(d, exit.closedSz + fill.size);
+      if (exit.status === 'filling' && exit.closedSz >= exit.size) exit.status = 'done';
       return;
     }
     // HL shrinks a partly filled take-profit on its own: track what still rests.

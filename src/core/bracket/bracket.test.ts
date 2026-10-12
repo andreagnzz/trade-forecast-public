@@ -11,7 +11,7 @@ import {
   type BracketPlan,
   type RejectReason,
 } from './bracket';
-import { makeCloid, type LegName } from './cloid';
+import { makeCloid, parseCloid, type LegName } from './cloid';
 import { reduceBracket } from './reduce';
 
 const ID = 'a1b2c3d4e5f6a7b8c9d0e1f2';
@@ -57,6 +57,7 @@ function run(start: Bracket, ...events: BracketEvent[]) {
 }
 
 const cancels = (commands: BracketCommand[]) => commands.filter((cmd) => cmd.type === 'cancel');
+const legOf = (cmd: BracketCommand) => ('cloid' in cmd ? parseCloid(cmd.cloid)?.leg : cmd.leg);
 
 // The position stop rests and the entry is sent.
 const working = (plan: BracketPlan = PLAN) =>
@@ -610,6 +611,18 @@ describe('close and OCO cleanup', () => {
       { type: 'cancel', cloid: c('sl') },
       { type: 'cancel', cloid: c('tp') },
     ]);
+  });
+
+  it('places no take-profit while a filled market close waits for its fills', () => {
+    const sent = run(working(), buy(0.003), order(c('entry'), 'filled', 0.003), rejected(c('tp')), {
+      type: 'close',
+      px: 81_000,
+    }).state;
+    const closing = run(sent, { type: 'retry_due', leg: 'tp' }, order(c('close'), 'filled', 0.003));
+    expect(closing.commands.filter((cmd) => legOf(cmd) === 'tp')).toEqual([]);
+    expect(closing.commands).toContainEqual({ type: 'wait_fills', leg: 'close', delayMs: 3000 });
+    const { state } = run(closing.state, sell(0.003, 0, c('close')), order(c('sl'), 'canceled'));
+    expect(state.outcome).toEqual({ kind: 'closed' });
   });
 
   it('cancels a resting entry first, and the stop only once the entry is finished', () => {

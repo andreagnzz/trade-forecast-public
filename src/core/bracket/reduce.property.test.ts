@@ -158,7 +158,10 @@ function simulate(actions: Action[]) {
           return;
         }
         if (name === 'close') {
-          if (position > 0) fill(command.cloid, position, true);
+          // A reduce-only IOC fills up to its own size; orderStatus reports what it filled.
+          const size = round(Math.min(Math.max(position, 0), command.order.size));
+          book.set(command.cloid, { size, filled: size });
+          if (size > 0) fill(command.cloid, size, true);
           finish(command.cloid, 'filled');
           return;
         }

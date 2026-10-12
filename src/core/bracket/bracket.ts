@@ -55,7 +55,8 @@ export interface Bracket {
     sentPx: number | null;
     prev: { seq: number; size: number; px: number | null } | null;
   };
-  close: LegState;
+  // As for the stop, once the close fills.
+  close: LegState & { closedSz: number };
   filledSz: number;
   exitedSz: number;
   tids: number[];
@@ -91,7 +92,8 @@ export type BracketEvent =
   | { type: 'rejected'; cloid: string; reason: RejectReason }
   | { type: 'uncertain' | 'unknown'; cloid: string }
   | ({ type: 'fill' } & BracketFill)
-  | { type: 'retry_due' | 'fills_due'; leg: 'sl' | 'tp' }
+  | { type: 'retry_due'; leg: 'sl' | 'tp' }
+  | { type: 'fills_due'; leg: 'sl' | 'tp' | 'close' }
   | {
       type: 'snapshot';
       // A reload lost the previous page's requests and timers; a resync of the same page did not.
@@ -108,7 +110,7 @@ export type BracketCommand =
   | { type: 'cancel'; cloid: Cloid }
   | { type: 'query'; cloid: Cloid }
   | { type: 'retry'; leg: 'sl' | 'tp'; delayMs: number }
-  | { type: 'wait_fills'; leg: 'sl' | 'tp'; delayMs: number };
+  | { type: 'wait_fills'; leg: 'sl' | 'tp' | 'close'; delayMs: number };
 
 export interface Step {
   state: Bracket;
@@ -175,7 +177,7 @@ export function openBracket(plan: BracketPlan): Step {
     entry: leg(),
     sl: { ...leg(), status: 'sending', closedSz: 0 },
     tp: { ...leg(), px: plan.tpPx, sentPx: null, prev: null },
-    close: leg(),
+    close: { ...leg(), closedSz: 0 },
     filledSz: 0,
     exitedSz: 0,
     tids: [],

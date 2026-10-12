@@ -15,7 +15,7 @@ const PLAN: BracketPlan = {
   tpPx: 82_000,
   riskUsd: 3.5,
 };
-const saved = { version: 3, since: 1_760_000_000_000, bracket: openBracket(PLAN).state };
+const saved = { version: 4, since: 1_760_000_000_000, bracket: openBracket(PLAN).state };
 
 describe('readSaved', () => {
   it('reads back a saved bracket', () => {
@@ -25,7 +25,7 @@ describe('readSaved', () => {
   it.each([
     ['nothing stored', null],
     ['invalid JSON', '{'],
-    ['another version', JSON.stringify({ ...saved, version: 2 })],
+    ['another version', JSON.stringify({ ...saved, version: 3 })],
     ['no plan', JSON.stringify({ ...saved, bracket: { ...saved.bracket, plan: null } })],
     [
       'a plan without a string id',
