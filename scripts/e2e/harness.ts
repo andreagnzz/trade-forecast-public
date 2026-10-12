@@ -1,6 +1,6 @@
 import { setTimeout as sleep } from 'node:timers/promises';
 import type { BracketPlan, OrderSpec } from '../../src/core/bracket/bracket';
-import { makeCloid, parseCloid } from '../../src/core/bracket/cloid';
+import { E2E_PREFIX, makeCloid, parseCloid } from '../../src/core/bracket/cloid';
 import { initialRulesState, type RulesState } from '../../src/core/rules';
 import {
   loadFills,
@@ -158,7 +158,7 @@ export async function longPlan(
   const size = m.sz((options.usd ?? 15) / m.ask + 10 ** -m.szDecimals);
   return {
     id: randomBracketId(),
-    prefix: '7465',
+    prefix: E2E_PREFIX,
     coin,
     side: 'long',
     entry: { type: options.type, px: entryPx },
@@ -182,7 +182,7 @@ export async function closePx(coin: string, isBuy: boolean) {
 // Leaves the coin flat with no e2e order resting, whatever a failed run left behind.
 export async function flatten(coin: string) {
   for (const o of await reads.openOrders()) {
-    if (o.coin === coin && o.cloid && parseCloid(o.cloid)?.prefix === '7465') {
+    if (o.coin === coin && o.cloid && parseCloid(o.cloid)?.prefix === E2E_PREFIX) {
       await orders.send(coin, { type: 'cancel', cloid: o.cloid });
     }
   }
@@ -198,7 +198,7 @@ export async function flatten(coin: string) {
   };
   await orders.send(coin, {
     type: 'place',
-    cloid: makeCloid('7465', randomBracketId(), 'close', 0),
+    cloid: makeCloid(E2E_PREFIX, randomBracketId(), 'close', 0),
     order,
   });
 }

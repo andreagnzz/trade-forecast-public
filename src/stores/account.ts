@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia';
 import { computed, ref, shallowRef } from 'vue';
-import { parseCloid, type Cloid, type CloidPrefix } from '../core/bracket/cloid';
+import { APP_PREFIX, parseCloid, type Cloid } from '../core/bracket/cloid';
 import { budgetRemainingUsd, utcDayStart } from '../core/budget';
 import {
   changeRules,
@@ -30,7 +30,6 @@ import { useTerminalStore } from './terminal';
 
 type Profile = Awaited<ReturnType<typeof loadProfile>>;
 
-export const APP_PREFIX: CloidPrefix = '7466';
 const REFRESH_DELAY_MS = 300;
 const CLOCK_TICK_MS = 30_000;
 

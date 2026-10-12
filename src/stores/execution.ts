@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia';
 import { computed, ref, shallowRef } from 'vue';
 import { exitIsBuy, isUnprotected, phase, type BracketPlan } from '../core/bracket/bracket';
-import { makeCloid, parseCloid, type Cloid } from '../core/bracket/cloid';
+import { APP_PREFIX, makeCloid, parseCloid, type Cloid } from '../core/bracket/cloid';
 import type { Rules } from '../core/rules';
 import { loadFills, loadOpenOrders, loadPosition, subscribeAccount } from '../hl/account';
 import { connectAgent, type ExecutionClient } from '../hl/exchange';
@@ -15,7 +15,7 @@ import {
   type SendRefusal,
 } from '../services/bracketManager';
 import { createOrderService, type OrderService, type SendResult } from '../services/orderService';
-import { APP_PREFIX, useAccountStore } from './account';
+import { useAccountStore } from './account';
 import { MAX_SLIPPAGE, MIN_NOTIONAL_USD, useTerminalStore } from './terminal';
 
 const KEY_STORAGE = 'tf.agentKey';

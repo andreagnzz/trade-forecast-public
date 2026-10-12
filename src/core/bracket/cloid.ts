@@ -1,4 +1,6 @@
 export type CloidPrefix = '7466' | '7465';
+export const APP_PREFIX = '7466' satisfies CloidPrefix;
+export const E2E_PREFIX = '7465' satisfies CloidPrefix;
 export type LegName = 'entry' | 'sl' | 'tp' | 'close';
 export type Cloid = `0x${string}`;
 
