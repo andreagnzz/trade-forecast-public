@@ -105,6 +105,19 @@ describe('account store', () => {
     expect(account.stats.asOf).toBe(0);
   });
 
+  it('hands sizing the budget left after every stats read', async () => {
+    const account = await openAccount();
+    vi.mocked(loadDayStats).mockResolvedValue(flatDay);
+    account.setRules({ lossLimit: { usd: 100, hard: true } });
+    account.refresh();
+    await vi.runOnlyPendingTimersAsync();
+    expect(useTerminalStore().account?.budgetRemainingUsd).toBe(100);
+
+    vi.mocked(loadDayStats).mockResolvedValue({ trips: [], dayPnlUsd: -60 });
+    await account.refreshStats();
+    expect(useTerminalStore().account?.budgetRemainingUsd).toBe(40);
+  });
+
   it("never writes one master's day stats into the next one", async () => {
     const account = await openAccount();
     const day = deferred<DayStats>();

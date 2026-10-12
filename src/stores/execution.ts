@@ -225,10 +225,20 @@ export const useExecutionStore = defineStore('execution', () => {
 
   // Only testnet prices, fully loaded, ever size a testnet order.
   async function send() {
+    const service = manager;
+    if (!service) return;
+    // The hard-limit budget can shrink between refreshes (unrealized PnL elsewhere): size on
+    // fresh stats.
+    try {
+      await account.refreshStats();
+    } catch {
+      notice.value = REFUSALS.stats_unavailable;
+      return;
+    }
     const sizing = terminal.okSizing;
     const spec = terminal.instrument;
     const live = terminal.network === 'testnet' && terminal.status === 'ready';
-    if (!manager || !live || !canSend.value || !sizing || !spec) return;
+    if (!live || !canSend.value || !sizing || !spec) return;
     const plan: BracketPlan = {
       id: randomBracketId(),
       prefix: APP_PREFIX,
@@ -246,7 +256,7 @@ export const useExecutionStore = defineStore('execution', () => {
       riskUsd: sizing.riskUsd,
     };
     try {
-      const refusal = await manager.send(plan, terminal.markPx);
+      const refusal = await service.send(plan, terminal.markPx);
       notice.value = refusal ? REFUSALS[refusal] : null;
     } catch {
       notice.value = 'not sent: testnet unreachable';

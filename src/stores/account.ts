@@ -79,6 +79,7 @@ export const useAccountStore = defineStore('account', () => {
     stats.value = { ...day, asOf: now };
     // The lock latches on every refresh, not only before orders.
     persistRules(updateLock(rulesState.value, stats.value, now));
+    pushAccount();
     return stats.value;
   }
 
