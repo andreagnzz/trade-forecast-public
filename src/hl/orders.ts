@@ -2,6 +2,7 @@ import { formatPrice, formatSize } from '@nktkas/hyperliquid/utils';
 import type { OrderSpec } from '../core/bracket/bracket';
 import type { Cloid } from '../core/bracket/cloid';
 import { errorFromStatus, parseHlError, type HlError } from './errors';
+import { parseNumber } from './format';
 
 export type OrderResult =
   | { status: 'resting' | 'canceled' | 'uncertain' }
@@ -45,7 +46,7 @@ export function placeResult(status: PlaceStatus | undefined, spec: OrderSpec): O
   if (status === undefined) return { status: 'uncertain' };
   if (typeof status === 'string' || 'resting' in status) return { status: 'resting' };
   if ('error' in status) return { status: 'rejected', error: parseHlError(status.error) };
-  const filledSz = Number(status.filled.totalSz);
+  const filledSz = parseNumber(status.filled.totalSz);
   return spec.type === 'ioc' || filledSz >= spec.size
     ? { status: 'filled', filledSz }
     : { status: 'resting' };
@@ -71,6 +72,6 @@ export function statusView(
   if (state === 'rejected') return { state, error: errorFromStatus(status) };
   return {
     state,
-    filledSz: Number((Number(order.origSz) - Number(order.sz)).toFixed(szDecimals)),
+    filledSz: Number((parseNumber(order.origSz) - parseNumber(order.sz)).toFixed(szDecimals)),
   };
 }

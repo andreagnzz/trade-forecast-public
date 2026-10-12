@@ -6,6 +6,7 @@ import {
 } from '@nktkas/hyperliquid';
 import { isCloid, type Cloid } from '../core/bracket/cloid';
 import type { Fill } from '../core/budget';
+import { parseNumber } from './format';
 
 // Read-only user data, on the same network as execution.
 const info = new InfoClient({ transport: new HttpTransport({ isTestnet: true }) });
@@ -55,11 +56,11 @@ const toFill = (f: WireFill): AccountFill => ({
   coin: f.coin,
   time: f.time,
   side: f.side === 'B' ? 'buy' : 'sell',
-  sz: Number(f.sz),
-  px: Number(f.px),
-  startPosition: Number(f.startPosition),
-  closedPnl: Number(f.closedPnl),
-  fee: Number(f.fee),
+  sz: parseNumber(f.sz),
+  px: parseNumber(f.px),
+  startPosition: parseNumber(f.startPosition),
+  closedPnl: parseNumber(f.closedPnl),
+  fee: parseNumber(f.fee),
   cloid: f.cloid ?? null,
 });
 
@@ -71,11 +72,11 @@ function toPosition(
   coin: string,
 ): Position {
   const position = state.assetPositions.find((p) => p.position.coin === coin)?.position;
-  const szi = Number(position?.szi ?? 0);
+  const szi = parseNumber(position?.szi ?? '0');
   return {
     size: Math.abs(szi),
     isLong: szi > 0,
-    unrealizedPnl: Number(position?.unrealizedPnl ?? 0),
+    unrealizedPnl: parseNumber(position?.unrealizedPnl ?? '0'),
     time: state.time,
   };
 }
@@ -85,7 +86,7 @@ export async function loadOpenOrders(master: Address): Promise<AccountOrder[]> {
   return orders.map((o) => ({
     coin: o.coin,
     cloid: o.cloid && isCloid(o.cloid) ? o.cloid : null,
-    size: Number(o.sz),
+    size: parseNumber(o.sz),
     reduceOnly: o.reduceOnly,
   }));
 }
@@ -112,12 +113,12 @@ export async function loadPosition(master: Address, coin: string): Promise<Posit
 
 export async function loadUnrealizedPnl(master: Address): Promise<number> {
   const state = await info.clearinghouseState({ user: master });
-  return state.assetPositions.reduce((sum, p) => sum + Number(p.position.unrealizedPnl), 0);
+  return state.assetPositions.reduce((sum, p) => sum + parseNumber(p.position.unrealizedPnl), 0);
 }
 
 export async function loadFunding(master: Address, since: number) {
   const updates = await info.userFunding({ user: master, startTime: since });
-  return updates.map((u) => ({ time: u.time, usdc: Number(u.delta.usdc) }));
+  return updates.map((u) => ({ time: u.time, usdc: parseNumber(u.delta.usdc) }));
 }
 
 // Account mode and fee tier do not change within a session: read them once.
@@ -128,7 +129,7 @@ export async function loadProfile(master: Address) {
   ]);
   return {
     unified: abstraction === 'unifiedAccount' || abstraction === 'portfolioMargin',
-    fees: { taker: Number(fees.userCrossRate), maker: Number(fees.userAddRate) },
+    fees: { taker: parseNumber(fees.userCrossRate), maker: parseNumber(fees.userAddRate) },
   };
 }
 
@@ -148,8 +149,8 @@ export async function loadLimits(
   // maxTradeSzs is [buy, sell]: with a long open, the buy cap shrinks (observed on testnet).
   const [buy, sell] = asset.maxTradeSzs;
   return {
-    equity: Number(unified ? (usdc?.total ?? 0) : perp.marginSummary.accountValue),
-    maxTradeSz: { long: Number(buy), short: Number(sell) },
+    equity: parseNumber(unified ? (usdc?.total ?? '0') : perp.marginSummary.accountValue),
+    maxTradeSz: { long: parseNumber(buy), short: parseNumber(sell) },
     fees,
   };
 }

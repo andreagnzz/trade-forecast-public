@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { pxDecimals, snapPrice, snapSize } from './format';
+import { parseNumber, pxDecimals, snapPrice, snapSize } from './format';
 
 describe('HL formatters', () => {
   it.each([
@@ -32,5 +32,13 @@ describe('HL formatters', () => {
     { px: 1.2345, szDecimals: 3, decimals: 3 },
   ])('shows $decimals decimals for $px with szDecimals $szDecimals', (row) => {
     expect(pxDecimals(row.px, row.szDecimals)).toBe(row.decimals);
+  });
+
+  it('parses a decimal string from Hyperliquid', () => {
+    expect(parseNumber('-0.0123')).toBe(-0.0123);
+  });
+
+  it.each(['NaN', 'Infinity', '', 'abc'])('throws on %j rather than return NaN', (text) => {
+    expect(() => parseNumber(text)).toThrow();
   });
 });

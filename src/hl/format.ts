@@ -26,3 +26,11 @@ export function snapSize(sz: number, szDecimals: number): number {
   if (!(sz >= 10 ** -szDecimals && Number.isFinite(sz))) return 0;
   return Number(formatSize(sz, szDecimals));
 }
+
+// The SDK validates requests, not responses: a NaN size or mark would make every comparison
+// false and let a busy-coin or crossed-stop check pass.
+export function parseNumber(text: string): number {
+  const value = Number(text);
+  if (text === '' || !Number.isFinite(value)) throw new Error(`not a number: ${text}`);
+  return value;
+}

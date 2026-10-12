@@ -4,6 +4,7 @@ import {
   SubscriptionClient,
   WebSocketTransport,
 } from '@nktkas/hyperliquid';
+import { parseNumber } from './format';
 
 export interface Candle {
   timeMs: number;
@@ -45,10 +46,10 @@ const infos: Record<Network, InfoClient> = {
 
 const toCandle = (c: { t: number; o: string; h: string; l: string; c: string }): Candle => ({
   timeMs: c.t,
-  open: Number(c.o),
-  high: Number(c.h),
-  low: Number(c.l),
-  close: Number(c.c),
+  open: parseNumber(c.o),
+  high: parseNumber(c.h),
+  low: parseNumber(c.l),
+  close: parseNumber(c.c),
 });
 
 export async function loadInstrument(coin: string, network: Network): Promise<Instrument> {
@@ -60,7 +61,7 @@ export async function loadInstrument(coin: string, network: Network): Promise<In
   return {
     szDecimals: asset.szDecimals,
     maxLeverage: asset.maxLeverage,
-    markPx: Number(ctx.markPx),
+    markPx: parseNumber(ctx.markPx),
   };
 }
 
@@ -79,14 +80,14 @@ export async function loadQuote(coin: string, network: Network): Promise<Quote> 
   const bid = book?.levels[0][0];
   const ask = book?.levels[1][0];
   if (!bid || !ask) throw new Error(`empty book: ${coin}`);
-  return { bid: Number(bid.px), ask: Number(ask.px) };
+  return { bid: parseNumber(bid.px), ask: parseNumber(ask.px) };
 }
 
 export async function loadAsks(coin: string, network: Network, depth: number) {
   const book = await infos[network].l2Book({ coin });
   return (book?.levels[1] ?? [])
     .slice(0, depth)
-    .map((l) => ({ px: Number(l.px), sz: Number(l.sz) }));
+    .map((l) => ({ px: parseNumber(l.px), sz: parseNumber(l.sz) }));
 }
 
 // The SDK socket reconnects and resubscribes on its own; we only surface its state. The
@@ -109,10 +110,10 @@ export async function subscribeMarket(
       handlers.onCandle(toCandle(event));
     }),
     subscriptions.bbo({ coin }, ({ bbo: [bid, ask] }) => {
-      if (bid && ask) handlers.onQuote({ bid: Number(bid.px), ask: Number(ask.px) });
+      if (bid && ask) handlers.onQuote({ bid: parseNumber(bid.px), ask: parseNumber(ask.px) });
     }),
     subscriptions.activeAssetCtx({ coin }, ({ ctx }) => {
-      handlers.onMark(Number(ctx.markPx));
+      handlers.onMark(parseNumber(ctx.markPx));
     }),
   ]);
   handlers.onConnection(true);
