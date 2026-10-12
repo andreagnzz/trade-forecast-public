@@ -3,7 +3,7 @@ import { computed } from 'vue';
 import {
   isTpAttention,
   openSize,
-  rMultiple as bracketR,
+  rMultiple,
   type Attention,
   type Phase,
 } from '../core/bracket/bracket';
@@ -11,7 +11,7 @@ import { useAccountStore } from '../stores/account';
 import { useExecutionStore } from '../stores/execution';
 import { MIN_NOTIONAL_USD } from '../hl/format';
 import { useTerminalStore } from '../stores/terminal';
-import { rMultiple, signedUsd, wholeUsd } from './format';
+import { rText, signedUsd, wholeUsd } from './format';
 
 const execution = useExecutionStore();
 const account = useAccountStore();
@@ -123,7 +123,7 @@ const tpChoices = computed(() => isTpAttention(execution.bracket?.attention ?? n
 
       <p v-if="execution.bracket.outcome?.kind === 'closed'" class="num">
         Result {{ signedUsd(execution.bracket.pnlUsd) }} ·
-        {{ rMultiple(bracketR(execution.bracket)) }}
+        {{ rText(rMultiple(execution.bracket)) }}
       </p>
       <p v-if="execution.view.lastError" class="muted">{{ execution.view.lastError }}</p>
 

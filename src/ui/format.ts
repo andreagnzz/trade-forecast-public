@@ -14,7 +14,7 @@ export const wholeUsd = (x: number) => wholeUsdFormat.format(x);
 export const signedUsd = (x: number) => `${x < 0 ? MINUS : '+'}${usd(x)}`;
 export const loss = (x: number) => `${MINUS}${usd(x)}`;
 export const pct = (x: number) => `${x.toFixed(2)}%`;
-export const rMultiple = (rr: number) => `${rr < 0 ? MINUS : ''}${Math.abs(rr).toFixed(1)}R`;
+export const rText = (rr: number) => `${rr < 0 ? MINUS : ''}${Math.abs(rr).toFixed(1)}R`;
 
 const distancePct = (from: number, to: number) => pct((Math.abs(to - from) / from) * 100);
 
@@ -37,7 +37,7 @@ export function lineLabels(sizing: Sizing, markPx: number, coin: string): LineLa
     tp:
       rewardUsd === undefined || rr === undefined
         ? undefined
-        : `${signedUsd(rewardUsd)} · ${rMultiple(rr)}`,
+        : `${signedUsd(rewardUsd)} · ${rText(rr)}`,
   };
 }
 

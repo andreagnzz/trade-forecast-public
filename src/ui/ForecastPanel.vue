@@ -7,7 +7,7 @@ import { MIN_NOTIONAL_USD } from '../hl/format';
 import { STOP_SLIPPAGE_BUFFER, useTerminalStore } from '../stores/terminal';
 import BracketTimeline from './BracketTimeline.vue';
 import RulesDrawer from './RulesDrawer.vue';
-import { loss, pct, price, rMultiple, signedUsd, sizingErrorText, usd, wholeUsd } from './format';
+import { loss, pct, price, rText, signedUsd, sizingErrorText, usd, wholeUsd } from './format';
 
 const store = useTerminalStore();
 const execution = useExecutionStore();
@@ -161,7 +161,7 @@ const equityText = numberField(
       </template>
       <template v-if="store.okSizing.rr !== undefined">
         <dt>R:R</dt>
-        <dd>{{ rMultiple(store.okSizing.rr) }}</dd>
+        <dd>{{ rText(store.okSizing.rr) }}</dd>
       </template>
       <dt>At best price</dt>
       <dd class="muted">{{ loss(store.okSizing.expectedRiskUsd) }}</dd>
