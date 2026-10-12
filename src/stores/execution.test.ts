@@ -1,11 +1,12 @@
 import { createPinia, setActivePinia } from 'pinia';
 import { describe, expect, it, vi } from 'vitest';
+import { APP_PREFIX, makeCloid } from '../core/bracket/cloid';
 import { subscribeAccount } from '../hl/account';
 import { connectAgent, type ExecutionClient } from '../hl/exchange';
 import { createBracketManager, type BracketManager } from '../services/bracketManager';
 import type { SendResult } from '../services/orderService';
 import { useAccountStore } from './account';
-import { strayNotice, useExecutionStore } from './execution';
+import { strayNotice, strayOrders, useExecutionStore } from './execution';
 import { useTerminalStore } from './terminal';
 
 vi.mock('../hl/exchange', () => ({ connectAgent: vi.fn() }));
@@ -31,6 +32,7 @@ vi.mock('../services/bracketManager', () => ({
 }));
 
 const MASTER = '0x0000000000000000000000000000000000000001';
+const BRACKET_ID = 'a1b2c3d4e5f6a7b8c9d0e1f2';
 
 describe('strayNotice', () => {
   it.each<[SendResult, string | null]>([
@@ -42,6 +44,25 @@ describe('strayNotice', () => {
     [{ status: 'filled', filledSz: 0.01 }, null],
   ])('tells the trader what became of a stray close or cancel (%j)', (result, notice) => {
     expect(strayNotice(result)).toBe(notice);
+  });
+});
+
+describe('strayOrders', () => {
+  const sl = {
+    coin: 'BTC',
+    cloid: makeCloid(APP_PREFIX, BRACKET_ID, 'sl', 0),
+    sz: 0,
+    reduceOnly: true,
+  };
+  const bracket = { plan: { id: BRACKET_ID }, outcome: null };
+
+  it('hides the orders of the running bracket', () => {
+    expect(strayOrders([sl], bracket)).toEqual([]);
+  });
+
+  it('lists the stop an ended bracket left resting', () => {
+    const ended = { ...bracket, outcome: { kind: 'cancelled', reason: 'dismissed' } } as const;
+    expect(strayOrders([sl], ended)).toEqual([sl]);
   });
 });
 

@@ -34,6 +34,16 @@ const REFUSALS: Record<SendRefusal, string> = {
   stats_unavailable: 'not sent: day stats unavailable',
 };
 
+// App orders on the coin that belong to no running bracket, such as the stop a dismissed one
+// leaves resting.
+export function strayOrders<O extends { cloid: Cloid }>(
+  orders: readonly O[],
+  bracket: { plan: { id: string }; outcome: unknown } | null,
+): O[] {
+  const running = bracket && !bracket.outcome ? bracket.plan.id : null;
+  return orders.filter((o) => parseCloid(o.cloid)?.bracketId !== running);
+}
+
 // Stray actions are reduce-only or cancels: the gate never blocks them.
 export function strayNotice(result: SendResult): string | null {
   if (result.status === 'rejected') return errorText(result.error);
@@ -64,13 +74,10 @@ export const useExecutionStore = defineStore('execution', () => {
   const active = computed(() => !!bracket.value && !bracket.value.outcome);
   const bracketPhase = computed(() => (bracket.value ? phase(bracket.value) : null));
   const unprotected = computed(() => !!bracket.value && isUnprotected(bracket.value));
-  // App orders on the coin that belong to no running bracket.
-  const strayOrders = computed(() =>
-    account.appOrders.filter((o) => parseCloid(o.cloid)?.bracketId !== bracket.value?.plan.id),
-  );
+  const strays = computed(() => strayOrders(account.appOrders, bracket.value));
   // Exposure on the coin that no local bracket tracks: cleared storage or another browser.
   const stray = computed(
-    () => !active.value && ((account.position?.sz ?? 0) > 0 || strayOrders.value.length > 0),
+    () => !active.value && ((account.position?.sz ?? 0) > 0 || strays.value.length > 0),
   );
   // The panel only mirrors these gates; OrderService and BracketManager enforce them again.
   const blocker = computed(() => {
@@ -298,7 +305,7 @@ export const useExecutionStore = defineStore('execution', () => {
     active,
     bracketPhase,
     unprotected,
-    strayOrders,
+    strayOrders: strays,
     stray,
     blocker,
     canSend,
