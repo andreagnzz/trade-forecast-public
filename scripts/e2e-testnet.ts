@@ -4,7 +4,8 @@ import { calibrate } from './e2e/calibrate';
 import { flatten, median } from './e2e/harness';
 import { COIN, scenarios, type Run } from './e2e/scenarios';
 
-// Letters follow the scenario table of the test plan.
+// a market bracket, b partial limit fill, c crossing take-profit, d close outside the app,
+// e reload, f one-bullet refusal, g stop hit by the market.
 const DEFAULT_RUNS: [string, number][] = [
   ['a', 10],
   ['c', 10],
