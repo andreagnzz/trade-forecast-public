@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { BracketPlan, OrderSpec } from '../core/bracket/bracket';
-import { makeCloid, parseCloid, type Cloid, type LegName } from '../core/bracket/cloid';
+import { APP_PREFIX, makeCloid, parseCloid, type Cloid, type LegName } from '../core/bracket/cloid';
 import { changeRules, initialRulesState, type DayStats, type RulesState } from '../core/rules';
 import type { AccountFill, AccountOrder } from '../hl/account';
 import type { QueryResult } from '../hl/exchange';
@@ -12,7 +12,7 @@ const ID = 'a1b2c3d4e5f6a7b8c9d0e1f2';
 const NOW = Date.UTC(2026, 9, 12, 12);
 const PLAN: BracketPlan = {
   id: ID,
-  prefix: '7466',
+  prefix: APP_PREFIX,
   coin: 'BTC',
   side: 'long',
   entry: { type: 'ioc', px: 80_160 },
@@ -24,7 +24,7 @@ const PLAN: BracketPlan = {
   riskUsd: 3.5,
 };
 const MARK = 80_050;
-const c = (leg: LegName, seq = 0) => makeCloid('7466', ID, leg, seq);
+const c = (leg: LegName, seq = 0) => makeCloid(APP_PREFIX, ID, leg, seq);
 
 interface Exchange {
   calls: string[];
@@ -210,7 +210,7 @@ describe('BracketManager', () => {
     await manager.send(PLAN, MARK);
     await manager.settled();
     manager.onOrderUpdate({
-      cloid: makeCloid('7466', 'f'.repeat(24), 'sl', 0),
+      cloid: makeCloid(APP_PREFIX, 'f'.repeat(24), 'sl', 0),
       coin: 'BTC',
       status: 'canceled',
       origSz: '0',

@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { openBracket, type BracketPlan } from '../core/bracket/bracket';
+import { APP_PREFIX } from '../core/bracket/cloid';
 import { readSaved } from './savedBracket';
 
 const PLAN: BracketPlan = {
   id: '0123456789abcdef01234567',
-  prefix: '7466',
+  prefix: APP_PREFIX,
   coin: 'BTC',
   side: 'long',
   entry: { type: 'ioc', px: 80_160 },

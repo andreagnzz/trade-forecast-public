@@ -1,6 +1,6 @@
 import { createPinia, setActivePinia } from 'pinia';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { makeCloid } from '../core/bracket/cloid';
+import { APP_PREFIX, E2E_PREFIX, makeCloid } from '../core/bracket/cloid';
 import type { DayStats } from '../core/rules';
 import { loadOpenOrders } from '../hl/account';
 import { loadDayStats } from '../services/accountData';
@@ -77,8 +77,8 @@ describe('account store', () => {
 
   it('lists only the app orders on the coin, not the e2e script ones', async () => {
     const account = await openAccount();
-    const app = makeCloid('7466', BRACKET_ID, 'entry', 0);
-    const e2e = makeCloid('7465', BRACKET_ID, 'entry', 0);
+    const app = makeCloid(APP_PREFIX, BRACKET_ID, 'entry', 0);
+    const e2e = makeCloid(E2E_PREFIX, BRACKET_ID, 'entry', 0);
     vi.mocked(loadDayStats).mockResolvedValue(flatDay);
     vi.mocked(loadOpenOrders).mockResolvedValueOnce(
       [app, e2e].map((cloid) => ({ coin: 'BTC', cloid, sz: 0.01, reduceOnly: false })),

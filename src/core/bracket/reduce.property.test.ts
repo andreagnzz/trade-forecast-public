@@ -9,12 +9,12 @@ import {
   type BracketFill,
   type BracketPlan,
 } from './bracket';
-import { parseCloid } from './cloid';
+import { APP_PREFIX, parseCloid } from './cloid';
 import { reduceBracket } from './reduce';
 
 const PLAN: BracketPlan = {
   id: '00112233445566778899aabb',
-  prefix: '7466',
+  prefix: APP_PREFIX,
   coin: 'ETH',
   side: 'short',
   entry: { type: 'gtc', px: 3000 },

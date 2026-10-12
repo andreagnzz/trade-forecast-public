@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { openBracket, type Bracket } from '../../src/core/bracket/bracket';
+import { APP_PREFIX } from '../../src/core/bracket/cloid';
 import { nextUtcDayStart } from '../../src/core/budget';
 import { callStore, numberIn, openTerminal, patchStore } from './terminal';
 
@@ -17,7 +18,7 @@ async function filledBracket(page: Page, patch: Partial<Bracket>): Promise<Brack
   const stopPx = numberIn(await page.getByTestId('stop').textContent());
   const { state } = openBracket({
     id: '000000000000000000000001',
-    prefix: '7466',
+    prefix: APP_PREFIX,
     coin: 'BTC',
     side: 'long',
     entry: { type: 'ioc', px: Math.round(stopPx * 1.007) },

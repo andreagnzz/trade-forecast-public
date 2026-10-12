@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import type { OrderSpec } from '../core/bracket/bracket';
-import { makeCloid } from '../core/bracket/cloid';
+import { APP_PREFIX, makeCloid } from '../core/bracket/cloid';
 import { changeRules, initialRulesState, type DayStats, type RulesState } from '../core/rules';
 import { createOrderService } from './orderService';
 
 const NOON = Date.UTC(2026, 9, 12, 12);
-const CLOID = makeCloid('7466', 'a1b2c3d4e5f6a7b8c9d0e1f2', 'entry', 0);
+const CLOID = makeCloid(APP_PREFIX, 'a1b2c3d4e5f6a7b8c9d0e1f2', 'entry', 0);
 const ENTRY: OrderSpec = { isBuy: true, px: 80_000, size: 0.001, reduceOnly: false, type: 'ioc' };
 const TP: OrderSpec = { ...ENTRY, isBuy: false, reduceOnly: true, type: 'alo' };
 const LOSS: DayStats = {
