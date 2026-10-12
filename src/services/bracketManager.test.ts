@@ -61,7 +61,7 @@ function setup(
   };
   const client = {
     place: (coin: string, cloid: Cloid, spec: OrderSpec) => {
-      if (coin === 'NOPE') throw new Error('boom');
+      if (coin === 'THROWS') throw new Error('signer crashed');
       exchange.calls.push(`place ${parseCloid(cloid)?.leg ?? '?'} ${String(spec.size)}`);
       return Promise.resolve(answer(cloid));
     },
@@ -283,9 +283,9 @@ describe('BracketManager', () => {
 
   it('keeps the queue running after one command throws, says so, and checks the order', async () => {
     const { manager, exchange, view } = setup();
-    await manager.send({ ...PLAN, coin: 'NOPE' }, MARK);
+    await manager.send({ ...PLAN, coin: 'THROWS' }, MARK);
     await manager.settled();
-    expect(view().lastError).toBe('internal error: boom');
+    expect(view().lastError).toBe('internal error: signer crashed');
     expect(exchange.calls).toEqual(['query sl']);
   });
 

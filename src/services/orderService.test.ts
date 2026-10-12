@@ -79,7 +79,7 @@ describe('OrderService', () => {
     expect(sent).toHaveLength(1);
   });
 
-  it('sends normally while the rules are armed', async () => {
+  it('sends an exposure-increasing order while one bullet is armed but unspent', async () => {
     const { service, sent } = setup({ trips: [], dayPnlUsd: 0 });
     expect(await service.send('BTC', { type: 'place', cloid: CLOID, order: ENTRY })).toEqual({
       status: 'resting',
