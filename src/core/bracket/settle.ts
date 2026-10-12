@@ -39,7 +39,9 @@ const inFlight = (d: Bracket) =>
 // between reopens the position, and the stop is still there to cover it.
 function windDown(d: Bracket, outcome: NonNullable<Bracket['outcome']>): BracketCommand[] {
   if (d.entry.status === 'live') return cancelLive(d, ['entry']);
-  if (d.entry.status !== 'idle' && !entryFinished(d)) return [];
+  // An entry the exchange has no record of may still land: only the trader's dismiss ends it.
+  const unknown = d.attention === 'entry_unknown';
+  if (unknown || (d.entry.status !== 'idle' && !entryFinished(d))) return [];
   const commands = cancelLive(d, LEGS);
   if (!inFlight(d)) d.outcome = outcome;
   return commands;

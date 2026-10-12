@@ -300,6 +300,19 @@ describe('entry without fill', () => {
     expect(run(state, order(c('sl', 1), 'open')).state.sl.status).toBe('live');
   });
 
+  it('never ends a bracket whose entry fate is unknown', () => {
+    const plan = { ...PLAN, entry: { type: 'ioc' as const, px: 80_100 } };
+    const { state } = run(
+      working(plan),
+      order(c('sl'), 'triggered'),
+      { type: 'uncertain', cloid: c('entry') },
+      { type: 'unknown', cloid: c('entry') },
+    );
+    expect(state.outcome).toBeNull();
+    expect(phase(state)).toBe('attention');
+    expect(state.attention).toBe('entry_unknown');
+  });
+
   it('waits for every announced fill before ending an unfilled bracket', () => {
     const { state } = run(
       working(),

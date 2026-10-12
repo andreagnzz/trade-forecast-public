@@ -185,6 +185,8 @@ export function openBracket(plan: BracketPlan): Step {
 
 export function phase(b: Bracket): Phase {
   if (b.outcome) return b.outcome.kind;
+  // The wind-down waits on the trader's dismiss.
+  if (b.attention === 'entry_unknown') return 'attention';
   if (b.cancelling || isFlat(b)) return 'closing';
   if (b.attention) return 'attention';
   if (b.filledSz === 0) {
